@@ -1,0 +1,1918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agentiv8 — Agentic Operations Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --navy: #1a2744;
+    --navy-light: #243256;
+    --navy-mid: #1e2d4f;
+    --blue: #2563eb;
+    --blue-light: #3b82f6;
+    --blue-subtle: #eff6ff;
+    --green: #16a34a;
+    --green-light: #22c55e;
+    --red: #dc2626;
+    --orange: #ea580c;
+    --yellow: #ca8a04;
+    --white: #ffffff;
+    --gray-50: #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-300: #d1d5db;
+    --gray-400: #9ca3af;
+    --gray-500: #6b7280;
+    --gray-600: #4b5563;
+    --gray-700: #374151;
+    --gray-800: #1f2937;
+    --sidebar-w: 220px;
+    --topbar-h: 58px;
+    --radius: 10px;
+    --shadow: 0 1px 4px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.06);
+    --shadow-lg: 0 4px 24px rgba(0,0,0,.12);
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--gray-50);
+    color: var(--gray-800);
+    font-size: 14px;
+    display: flex;
+    min-height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: var(--sidebar-w);
+    background: var(--navy);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    height: 100vh;
+    position: fixed;
+    left: 0; top: 0;
+    z-index: 100;
+  }
+  .sidebar-logo {
+    display: flex; align-items: center; gap: 10px;
+    padding: 18px 20px;
+    border-bottom: 1px solid rgba(255,255,255,.07);
+  }
+  .logo-icon {
+    width: 32px; height: 32px;
+    background: var(--blue);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .logo-icon svg { width: 18px; height: 18px; }
+  .logo-text { color: white; font-weight: 700; font-size: 17px; letter-spacing: -.3px; }
+  .logo-text span { color: var(--blue-light); }
+
+  .sidebar-nav { flex: 1; padding: 10px 0; overflow-y: auto; }
+  .nav-item {
+    display: flex; align-items: center; gap: 11px;
+    padding: 10px 20px;
+    color: rgba(255,255,255,.6);
+    cursor: pointer;
+    border-radius: 0;
+    transition: all .15s;
+    font-size: 13.5px;
+    font-weight: 500;
+    position: relative;
+  }
+  .nav-item:hover { color: white; background: rgba(255,255,255,.06); }
+  .nav-item.active {
+    color: white;
+    background: rgba(255,255,255,.1);
+    border-left: 3px solid var(--blue-light);
+    padding-left: 17px;
+  }
+  .nav-item svg { width: 17px; height: 17px; flex-shrink: 0; }
+  .nav-badge {
+    background: var(--red);
+    color: white;
+    font-size: 10px; font-weight: 700;
+    border-radius: 10px;
+    padding: 2px 6px;
+    margin-left: auto;
+  }
+
+  .sidebar-bottom {
+    padding: 16px 20px;
+    border-top: 1px solid rgba(255,255,255,.07);
+  }
+  .escalation-box {
+    background: rgba(220,38,38,.15);
+    border: 1px solid rgba(220,38,38,.25);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: rgba(255,255,255,.85);
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .escalation-box .esc-header {
+    display: flex; align-items: center; gap: 6px;
+    margin-bottom: 6px;
+    font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .5px;
+    color: rgba(255,255,255,.5);
+  }
+  .esc-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(220,38,38,.25);
+    border-radius: 20px;
+    padding: 4px 10px;
+    font-size: 12px; cursor: pointer;
+  }
+  .esc-pill .esc-num { font-weight: 700; color: #fca5a5; }
+  .esc-pill .esc-label { color: rgba(255,255,255,.7); }
+
+  /* ── MAIN ── */
+  .main {
+    margin-left: var(--sidebar-w);
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ── TOPBAR ── */
+  .topbar {
+    height: var(--topbar-h);
+    background: white;
+    border-bottom: 1px solid var(--gray-200);
+    display: flex; align-items: center;
+    padding: 0 24px;
+    gap: 16px;
+    flex-shrink: 0;
+    position: sticky; top: 0; z-index: 50;
+  }
+  .property-selector {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+    padding: 7px 12px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 13.5px;
+    transition: border-color .15s;
+  }
+  .property-selector:hover { border-color: var(--blue-light); }
+  .property-selector svg { width: 15px; height: 15px; color: var(--gray-500); }
+
+  .topbar-stats { display: flex; align-items: center; gap: 0; margin-left: auto; }
+  .stat-item {
+    display: flex; align-items: baseline; gap: 5px;
+    padding: 0 20px;
+    border-left: 1px solid var(--gray-200);
+    font-size: 13px;
+  }
+  .stat-item:last-child { border-right: 1px solid var(--gray-200); }
+  .stat-num { font-size: 18px; font-weight: 700; color: var(--gray-800); }
+  .stat-num.blue { color: var(--blue); }
+  .stat-num.orange { color: var(--orange); }
+  .stat-label { color: var(--gray-500); font-size: 12px; }
+
+  .topbar-actions { display: flex; align-items: center; gap: 10px; margin-left: 16px; }
+  .icon-btn {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    cursor: pointer;
+    color: var(--gray-500);
+    transition: all .15s;
+  }
+  .icon-btn:hover { background: var(--gray-100); color: var(--gray-700); }
+  .icon-btn svg { width: 17px; height: 17px; }
+
+  /* ── PAGE CONTENT ── */
+  .page-content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  /* ── VIEWS ── */
+  .view { display: none; }
+  .view.active { display: flex; flex-direction: column; height: 100%; }
+
+  /* ═══════════════ MESSAGES VIEW ═══════════════ */
+  .messages-layout {
+    display: grid;
+    grid-template-columns: 340px 1fr 280px;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  /* Inbox List */
+  .inbox-panel {
+    border-right: 1px solid var(--gray-200);
+    display: flex; flex-direction: column;
+    background: white;
+    overflow: hidden;
+  }
+  .inbox-header {
+    padding: 16px 16px 12px;
+    border-bottom: 1px solid var(--gray-100);
+  }
+  .inbox-title { font-size: 16px; font-weight: 700; margin-bottom: 10px; }
+  .channel-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+  .ch-tab {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px; font-weight: 500;
+    cursor: pointer;
+    transition: all .15s;
+    color: var(--gray-500);
+    border: 1px solid transparent;
+  }
+  .ch-tab:hover { background: var(--gray-100); }
+  .ch-tab.active { background: var(--blue); color: white; }
+  .ch-tab.whatsapp { color: #16a34a; }
+  .ch-tab.whatsapp.active { background: #16a34a; color: white; }
+
+  .inbox-search {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--gray-100);
+  }
+  .search-input {
+    width: 100%;
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+    padding: 7px 12px 7px 32px;
+    font-size: 13px;
+    color: var(--gray-700);
+    position: relative;
+    outline: none;
+    font-family: inherit;
+  }
+  .search-wrap { position: relative; }
+  .search-wrap svg {
+    position: absolute; left: 9px; top: 50%;
+    transform: translateY(-50%);
+    width: 15px; height: 15px; color: var(--gray-400);
+  }
+
+  .inbox-list { flex: 1; overflow-y: auto; }
+  .conv-item {
+    display: flex; gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--gray-50);
+    cursor: pointer;
+    transition: background .1s;
+    position: relative;
+  }
+  .conv-item:hover { background: var(--gray-50); }
+  .conv-item.active { background: var(--blue-subtle); border-left: 3px solid var(--blue); padding-left: 13px; }
+  .conv-item.escalated { border-left: 3px solid var(--red); padding-left: 13px; }
+  .avatar {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: var(--gray-200);
+    flex-shrink: 0;
+    overflow: hidden;
+    position: relative;
+  }
+  .avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .avatar-initials {
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 13px; color: white;
+  }
+  .av-green { background: linear-gradient(135deg, #16a34a, #22c55e); }
+  .av-blue { background: linear-gradient(135deg, #2563eb, #60a5fa); }
+  .av-purple { background: linear-gradient(135deg, #7c3aed, #a78bfa); }
+  .av-dot {
+    position: absolute; bottom: 1px; right: 1px;
+    width: 10px; height: 10px;
+    border-radius: 50%; border: 2px solid white;
+    background: var(--green-light);
+  }
+
+  .conv-info { flex: 1; min-width: 0; }
+  .conv-top { display: flex; justify-content: space-between; align-items: flex-start; }
+  .conv-name { font-weight: 600; font-size: 13.5px; }
+  .conv-time { font-size: 11px; color: var(--gray-400); flex-shrink: 0; }
+  .conv-subject { color: var(--blue); font-size: 12.5px; font-weight: 500; margin-top: 1px; }
+  .conv-subject.red { color: var(--red); }
+  .conv-status { display: flex; align-items: center; gap: 5px; margin-top: 3px; font-size: 11.5px; color: var(--gray-400); }
+  .conv-status svg { width: 13px; height: 13px; }
+  .check-green { color: var(--green); }
+  .alert-red { color: var(--red); }
+
+  /* Chat Panel */
+  .chat-panel {
+    display: flex; flex-direction: column;
+    background: var(--gray-50);
+    overflow: hidden;
+  }
+  .chat-header {
+    background: white;
+    border-bottom: 1px solid var(--gray-200);
+    padding: 12px 20px;
+    display: flex; align-items: center; gap: 12px;
+    flex-shrink: 0;
+  }
+  .chat-header-info { flex: 1; }
+  .chat-header-name { font-weight: 700; font-size: 15px; }
+  .chat-header-sub { font-size: 12px; color: var(--gray-500); }
+  .chat-header-actions { display: flex; gap: 8px; }
+  .btn-icon {
+    width: 34px; height: 34px;
+    border-radius: 8px; border: 1px solid var(--gray-200);
+    background: white; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; color: var(--gray-500); transition: all .15s;
+  }
+  .btn-icon:hover { background: var(--gray-50); }
+  .btn-icon svg { width: 16px; height: 16px; }
+  .btn-blue-sm {
+    background: var(--blue); color: white;
+    border: none; border-radius: 8px;
+    padding: 6px 14px; font-size: 13px; font-weight: 500;
+    cursor: pointer; display: flex; align-items: center; gap: 6px;
+    transition: background .15s;
+  }
+  .btn-blue-sm:hover { background: #1d4ed8; }
+  .btn-blue-sm svg { width: 15px; height: 15px; }
+
+  .chat-messages {
+    flex: 1; overflow-y: auto;
+    padding: 20px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+
+  .msg-bubble {
+    max-width: 68%;
+    padding: 11px 15px;
+    border-radius: 14px;
+    font-size: 13.5px;
+    line-height: 1.55;
+  }
+  .msg-guest {
+    background: white;
+    border: 1px solid var(--gray-200);
+    align-self: flex-start;
+    border-bottom-left-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  }
+  .msg-ai {
+    background: linear-gradient(135deg, #e8f0fe, #dbeafe);
+    border: 1px solid #bfdbfe;
+    align-self: flex-end;
+    border-bottom-right-radius: 4px;
+    color: var(--gray-800);
+  }
+  .msg-ai .ai-link { color: var(--blue); font-weight: 600; }
+
+  .msg-actions {
+    display: flex; gap: 12px; align-self: flex-end;
+    margin-top: -4px;
+  }
+  .msg-action-btn {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 12px; color: var(--gray-500);
+    cursor: pointer; background: none; border: none;
+    transition: color .15s;
+    font-family: inherit;
+  }
+  .msg-action-btn:hover { color: var(--blue); }
+  .msg-action-btn svg { width: 14px; height: 14px; }
+  .msg-action-btn.escalate:hover { color: var(--orange); }
+
+  .chat-input-area {
+    background: white;
+    border-top: 1px solid var(--gray-200);
+    padding: 12px 16px;
+    display: flex; align-items: center; gap: 8px;
+    flex-shrink: 0;
+  }
+  .chat-input {
+    flex: 1;
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+    padding: 9px 14px;
+    font-size: 13.5px;
+    color: var(--gray-700);
+    outline: none;
+    font-family: inherit;
+    resize: none;
+  }
+  .chat-input:focus { border-color: var(--blue-light); }
+
+  /* Right Panel */
+  .right-panel {
+    border-left: 1px solid var(--gray-200);
+    background: white;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .rp-section { }
+  .rp-section-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 10px;
+  }
+  .rp-section-title { font-size: 14px; font-weight: 700; }
+  .rp-more { color: var(--gray-400); cursor: pointer; }
+  .rp-more svg { width: 16px; height: 16px; }
+
+  .guest-card {
+    display: flex; gap: 10px; align-items: center;
+    margin-bottom: 12px;
+  }
+  .guest-avatar { width: 44px; height: 44px; border-radius: 50%; overflow: hidden; flex-shrink: 0; }
+  .guest-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .guest-name-block .name { font-weight: 700; font-size: 14px; }
+  .guest-name-block .unit { font-size: 12px; color: var(--gray-500); }
+
+  .detail-row {
+    display: flex; align-items: flex-start; gap: 8px;
+    font-size: 12.5px; color: var(--gray-600);
+    padding: 5px 0;
+  }
+  .detail-row svg { width: 14px; height: 14px; color: var(--gray-400); flex-shrink: 0; margin-top: 1px; }
+  .detail-row strong { color: var(--gray-800); font-weight: 600; }
+  .detail-row a { color: var(--blue); text-decoration: none; font-weight: 500; }
+
+  .divider { height: 1px; background: var(--gray-100); margin: 4px 0; }
+
+  .concierge-icons { display: flex; gap: 8px; flex-wrap: wrap; }
+  .conc-item {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    cursor: pointer;
+  }
+  .conc-icon {
+    width: 48px; height: 48px;
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    transition: all .15s;
+  }
+  .conc-item:hover .conc-icon { background: var(--blue-subtle); border-color: var(--blue-light); }
+  .conc-label { font-size: 10.5px; color: var(--gray-500); text-align: center; font-weight: 500; }
+
+  /* ═══════════════ OPERATIONS VIEW ═══════════════ */
+  .ops-content { padding: 24px; }
+  .ops-stats-row {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+    margin-bottom: 20px;
+  }
+  .ops-stat {
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    text-align: center;
+  }
+  .ops-stat .s-num {
+    font-size: 28px; font-weight: 800;
+    line-height: 1;
+  }
+  .ops-stat .s-num.blue { color: var(--blue); }
+  .ops-stat .s-num.green { color: var(--green); }
+  .ops-stat .s-num.orange { color: var(--orange); }
+  .ops-stat .s-num.red { color: var(--red); }
+  .ops-stat .s-label { font-size: 12px; color: var(--gray-500); margin-top: 4px; font-weight: 500; }
+
+  .ops-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  .ops-card {
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .ops-card-header {
+    padding: 14px 16px 10px;
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid var(--gray-100);
+  }
+  .ops-card-title { font-weight: 700; font-size: 14px; }
+  .ops-card-body { padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
+
+  .checkin-row {
+    padding: 10px 12px;
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+    transition: border-color .15s;
+  }
+  .checkin-row:hover { border-color: var(--blue-light); }
+  .checkin-top { display: flex; justify-content: space-between; align-items: center; }
+  .checkin-unit { font-weight: 700; font-size: 13.5px; }
+  .checkin-guest { font-size: 12px; color: var(--gray-500); margin-top: 2px; }
+  .checkin-time { font-size: 13px; font-weight: 700; color: var(--green); }
+  .badge {
+    display: inline-flex; align-items: center;
+    padding: 2px 8px; border-radius: 20px;
+    font-size: 11px; font-weight: 600;
+  }
+  .badge-today { background: #eff6ff; color: var(--blue); }
+  .badge-tomorrow { background: var(--gray-100); color: var(--gray-600); }
+  .badge-progress { background: #dcfce7; color: #15803d; }
+  .badge-pending { background: #fef9c3; color: #854d0e; }
+  .badge-urgent { background: #fee2e2; color: #991b1b; }
+  .badge-new { background: #fef3c7; color: #92400e; }
+  .checkin-actions { display: flex; gap: 6px; margin-top: 8px; }
+  .btn-sm {
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px; font-weight: 500;
+    cursor: pointer;
+    border: 1px solid var(--gray-200);
+    background: white;
+    color: var(--gray-600);
+    font-family: inherit;
+    transition: all .15s;
+  }
+  .btn-sm:hover { background: var(--gray-50); border-color: var(--gray-300); }
+  .btn-sm.primary {
+    background: var(--blue); color: white; border-color: var(--blue);
+  }
+  .btn-sm.primary:hover { background: #1d4ed8; }
+  .btn-sm.green { background: #dcfce7; color: #15803d; border-color: #bbf7d0; }
+  .btn-sm.green:hover { background: #bbf7d0; }
+
+  .task-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px;
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+  }
+  .task-avatar { width: 28px; height: 28px; border-radius: 50%; overflow: hidden; flex-shrink: 0; }
+  .task-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .task-info { flex: 1; }
+  .task-name { font-weight: 600; font-size: 13px; }
+  .task-sub { font-size: 11.5px; color: var(--gray-500); }
+  .task-time { font-size: 12px; font-weight: 500; color: var(--gray-600); }
+  .task-actions { display: flex; gap: 5px; margin-top: 4px; }
+
+  .issue-row {
+    padding: 10px 12px;
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+  }
+  .issue-top { display: flex; justify-content: space-between; align-items: flex-start; }
+  .issue-title { font-weight: 600; font-size: 13px; color: var(--red); }
+  .issue-meta { font-size: 11.5px; color: var(--gray-500); margin-top: 2px; }
+  .issue-desc {
+    margin-top: 8px;
+    background: var(--gray-50);
+    border-radius: 6px;
+    padding: 7px 9px;
+    font-size: 12.5px;
+    color: var(--gray-700);
+  }
+  .issue-actions { display: flex; gap: 6px; margin-top: 8px; }
+
+  /* ═══════════════ ANALYTICS VIEW ═══════════════ */
+  .analytics-content { padding: 24px; }
+  .analytics-stats {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+    margin-bottom: 20px;
+  }
+  .a-stat {
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+  }
+  .a-stat .a-label { font-size: 12px; color: var(--gray-500); font-weight: 500; margin-bottom: 4px; }
+  .a-stat .a-value { font-size: 26px; font-weight: 800; }
+  .a-stat .a-value.blue { color: var(--blue); }
+  .a-stat .a-sub { font-size: 11.5px; color: var(--green); margin-top: 3px; font-weight: 500; }
+
+  .analytics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .a-card {
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+  }
+  .a-card-title { font-weight: 700; font-size: 14px; margin-bottom: 14px; }
+
+  /* Bar chart */
+  .bar-chart { display: flex; align-items: flex-end; gap: 10px; height: 120px; }
+  .bar-group { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+  .bar {
+    width: 100%;
+    background: linear-gradient(to top, var(--blue), var(--blue-light));
+    border-radius: 4px 4px 0 0;
+    transition: opacity .15s;
+  }
+  .bar:hover { opacity: .8; }
+  .bar-label { font-size: 10.5px; color: var(--gray-500); }
+
+  /* Pie chart */
+  .pie-wrap { display: flex; gap: 16px; align-items: center; }
+  .pie-chart { width: 90px; height: 90px; flex-shrink: 0; }
+  .pie-legend { display: flex; flex-direction: column; gap: 6px; }
+  .pie-leg-item { display: flex; align-items: center; gap: 7px; font-size: 12px; }
+  .pie-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+  /* Rev table */
+  .rev-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--gray-100);
+    font-size: 13px;
+  }
+  .rev-row:last-child { border-bottom: none; }
+  .rev-unit { font-weight: 600; }
+  .rev-guest { font-size: 11.5px; color: var(--gray-500); margin-top: 1px; }
+  .rev-amount { font-weight: 700; color: var(--gray-800); }
+
+  /* ═══════════════ CONCIERGE VIEW ═══════════════ */
+  .concierge-content { padding: 24px; }
+  .conc-page-header { margin-bottom: 20px; }
+  .conc-page-title { font-size: 20px; font-weight: 800; }
+  .conc-tabs { display: flex; gap: 6px; margin-top: 10px; }
+  .conc-tab {
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px; font-weight: 500;
+    cursor: pointer;
+    transition: all .15s;
+    border: 1px solid var(--gray-200);
+    color: var(--gray-600);
+    background: white;
+  }
+  .conc-tab.active { background: var(--blue); color: white; border-color: var(--blue); }
+  .conc-tab:hover:not(.active) { background: var(--gray-50); }
+
+  .services-grid { display: flex; flex-direction: column; gap: 12px; }
+  .service-card {
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    overflow: hidden;
+    display: flex;
+    transition: box-shadow .15s;
+  }
+  .service-card:hover { box-shadow: var(--shadow); }
+  .service-img {
+    width: 130px; flex-shrink: 0;
+    background: var(--gray-200);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 36px;
+    overflow: hidden;
+  }
+  .service-img img { width: 100%; height: 100%; object-fit: cover; }
+  .service-body { flex: 1; padding: 14px 16px; }
+  .service-name { font-size: 16px; font-weight: 700; }
+  .service-desc { font-size: 12.5px; color: var(--gray-500); margin-top: 3px; }
+  .service-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
+  .service-price { font-size: 14px; font-weight: 600; color: var(--gray-700); }
+  .comm-badge {
+    display: inline-block;
+    background: #dbeafe; color: var(--blue);
+    font-size: 11px; font-weight: 600;
+    padding: 2px 8px; border-radius: 20px;
+    margin-top: 4px;
+  }
+  .btn-book {
+    background: var(--blue); color: white;
+    border: none; border-radius: 8px;
+    padding: 8px 18px; font-size: 13px; font-weight: 600;
+    cursor: pointer; font-family: inherit;
+    transition: background .15s;
+  }
+  .btn-book:hover { background: #1d4ed8; }
+
+  /* ═══════════════ KNOWLEDGE BASE ═══════════════ */
+  .kb-content { display: flex; height: 100%; overflow: hidden; }
+  .kb-sidebar {
+    width: 240px; flex-shrink: 0;
+    background: white;
+    border-right: 1px solid var(--gray-200);
+    display: flex; flex-direction: column;
+    overflow-y: auto;
+  }
+  .kb-sidebar-header {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--gray-100);
+  }
+  .kb-search {
+    width: 100%;
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+    padding: 7px 10px;
+    font-size: 12.5px;
+    outline: none;
+    font-family: inherit;
+  }
+  .kb-nav { padding: 8px 0; }
+  .kb-nav-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 16px;
+    cursor: pointer; font-size: 13px;
+    color: var(--gray-600);
+    transition: background .1s;
+  }
+  .kb-nav-item:hover { background: var(--gray-50); }
+  .kb-nav-item.active { color: var(--blue); background: var(--blue-subtle); font-weight: 600; border-left: 3px solid var(--blue); padding-left: 13px; }
+  .kb-nav-item svg { width: 14px; height: 14px; color: var(--gray-400); }
+  .kb-nav-item .nav-icon { width: 16px; height: 16px; margin-right: 8px; flex-shrink: 0; }
+  .kb-add-cat { display: flex; align-items: center; gap: 6px; padding: 8px 16px; color: var(--blue); font-size: 13px; cursor: pointer; font-weight: 500; }
+
+  .kb-drop-zone {
+    margin: 12px 16px;
+    border: 2px dashed var(--gray-300);
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+    color: var(--gray-400);
+    font-size: 12px;
+    cursor: pointer;
+    transition: border-color .15s;
+  }
+  .kb-drop-zone:hover { border-color: var(--blue-light); color: var(--blue); }
+  .kb-drop-zone svg { width: 24px; height: 24px; margin: 0 auto 6px; }
+  .kb-drop-link { color: var(--blue); }
+
+  .kb-main { flex: 1; padding: 20px 24px; overflow-y: auto; }
+  .kb-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .kb-header h2 { font-size: 16px; font-weight: 700; }
+  .kb-actions { display: flex; gap: 8px; align-items: center; }
+  .sort-select {
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 12.5px;
+    font-family: inherit;
+    color: var(--gray-600);
+    outline: none;
+  }
+
+  .kb-items { display: flex; flex-direction: column; gap: 8px; }
+  .kb-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px;
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+    transition: border-color .15s;
+    cursor: pointer;
+  }
+  .kb-item:hover { border-color: var(--blue-light); }
+  .kb-item-icon { width: 32px; height: 32px; flex-shrink: 0; color: var(--red); }
+  .kb-item-icon svg { width: 100%; height: 100%; }
+  .kb-item-info { flex: 1; }
+  .kb-item-name { font-weight: 600; font-size: 13.5px; }
+  .kb-item-meta { font-size: 11.5px; color: var(--gray-400); margin-top: 2px; display: flex; gap: 8px; align-items: center; }
+  .kb-item-tag {
+    background: var(--gray-100); color: var(--gray-500);
+    font-size: 10.5px; padding: 1px 7px; border-radius: 10px; font-weight: 500;
+  }
+  .kb-item-tag.blue { background: #dbeafe; color: var(--blue); }
+  .toggle {
+    width: 38px; height: 22px;
+    background: var(--blue);
+    border-radius: 11px;
+    position: relative; cursor: pointer; flex-shrink: 0;
+    transition: background .2s;
+  }
+  .toggle::after {
+    content: '';
+    position: absolute; top: 3px; right: 3px;
+    width: 16px; height: 16px;
+    background: white; border-radius: 50%;
+    transition: transform .2s;
+  }
+  .toggle.off { background: var(--gray-300); }
+  .toggle.off::after { transform: translateX(-16px); }
+
+  /* ═══════════════ DASHBOARD ═══════════════ */
+  .dashboard-content { padding: 24px; display: flex; flex-direction: column; gap: 20px; }
+  .dash-welcome { font-size: 20px; font-weight: 800; }
+  .dash-welcome span { color: var(--blue); }
+  .dash-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .dash-card {
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    cursor: pointer;
+    transition: box-shadow .15s;
+  }
+  .dash-card:hover { box-shadow: var(--shadow); }
+  .dash-card-icon { font-size: 24px; margin-bottom: 8px; }
+  .dash-card-title { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+  .dash-card-sub { font-size: 12px; color: var(--gray-500); }
+  .dash-card-stat { font-size: 28px; font-weight: 800; margin-top: 10px; }
+  .dash-card-stat.blue { color: var(--blue); }
+  .dash-card-stat.green { color: var(--green); }
+  .dash-card-stat.orange { color: var(--orange); }
+
+  .dash-ops {
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+  }
+  .dash-ops-title { font-weight: 700; font-size: 15px; margin-bottom: 14px; }
+  .dash-ops-row {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+  }
+  .dash-ops-item {
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+    padding: 12px 14px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .doi-icon { font-size: 20px; }
+  .doi-info .doi-label { font-size: 12px; color: var(--gray-500); }
+  .doi-info .doi-val { font-size: 16px; font-weight: 700; }
+
+  /* Scrollbars */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--gray-300); border-radius: 10px; }
+
+  /* Notification dot on nav */
+  .nav-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--red); margin-left: auto;
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--navy);
+    color: white;
+    padding: 12px 18px;
+    border-radius: 10px;
+    font-size: 13px; font-weight: 500;
+    box-shadow: var(--shadow-lg);
+    transform: translateY(80px);
+    opacity: 0;
+    transition: all .3s;
+    z-index: 999;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- ── SIDEBAR ── -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5">
+        <circle cx="12" cy="5" r="2"/><circle cx="5" cy="17" r="2"/><circle cx="19" cy="17" r="2"/>
+        <line x1="12" y1="7" x2="5" y2="15"/><line x1="12" y1="7" x2="19" y2="15"/>
+        <line x1="5" y1="17" x2="19" y2="17"/>
+      </svg>
+    </div>
+    <span class="logo-text">Agenti<span>v8</span></span>
+  </div>
+
+  <div class="sidebar-nav">
+    <div class="nav-item" onclick="navigate('dashboard')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Dashboard
+    </div>
+    <div class="nav-item active" onclick="navigate('messages')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      Messages
+      <span class="nav-badge">3</span>
+    </div>
+    <div class="nav-item" onclick="navigate('operations')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Tasks
+    </div>
+    <div class="nav-item" onclick="navigate('calendar')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><circle cx="8" cy="15" r="1" fill="currentColor"/><circle cx="12" cy="15" r="1" fill="currentColor"/></svg>
+      Calendar
+    </div>
+    <div class="nav-item" onclick="navigate('properties')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Properties
+    </div>
+    <div class="nav-item" onclick="navigate('concierge')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+      Concierge
+    </div>
+    <div class="nav-item" onclick="navigate('analytics')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      Analytics
+    </div>
+    <div class="nav-item" onclick="navigate('knowledge')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+      Knowledge Base
+      <span class="nav-dot"></span>
+    </div>
+    <div class="nav-item" onclick="navigate('settings')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      Settings
+    </div>
+  </div>
+
+  <div class="sidebar-bottom">
+    <div class="escalation-box">
+      <div class="esc-header">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        New Escalations
+      </div>
+      <div class="esc-pill">
+        <span class="esc-num">2</span>
+        <span class="esc-label">Tasks Overdue</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- ── MAIN ── -->
+<div class="main">
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div class="property-selector">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      Ocean Vista Rentals
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+
+    <div class="topbar-stats">
+      <div class="stat-item">
+        <span class="stat-num">18</span>
+        <span class="stat-label">/ 24 Properties Booked</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-num blue">12</span>
+        <span class="stat-label">Check-Ins Today</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-num orange">3</span>
+        <span class="stat-label">Escalations</span>
+      </div>
+    </div>
+
+    <div class="topbar-actions">
+      <div class="icon-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+      </div>
+      <div class="icon-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M6 20v-2a4 4 0 018 0v2"/></svg>
+      </div>
+    </div>
+  </header>
+
+  <!-- PAGE CONTENT -->
+  <div class="page-content">
+
+    <!-- ══ DASHBOARD VIEW ══ -->
+    <div id="view-dashboard" class="view">
+      <div class="dashboard-content">
+        <div class="dash-welcome">Good morning, <span>Noer</span> 👋</div>
+        <div class="dash-grid">
+          <div class="dash-card" onclick="navigate('messages')">
+            <div class="dash-card-icon">💬</div>
+            <div class="dash-card-title">Messages</div>
+            <div class="dash-card-sub">Guest conversations across all channels</div>
+            <div class="dash-card-stat blue">14</div>
+          </div>
+          <div class="dash-card" onclick="navigate('operations')">
+            <div class="dash-card-icon">🏠</div>
+            <div class="dash-card-title">Operations</div>
+            <div class="dash-card-sub">Check-ins, cleaning & maintenance</div>
+            <div class="dash-card-stat orange">12</div>
+          </div>
+          <div class="dash-card" onclick="navigate('concierge')">
+            <div class="dash-card-icon">🎩</div>
+            <div class="dash-card-title">Concierge Revenue</div>
+            <div class="dash-card-sub">Upsells & experiences booked</div>
+            <div class="dash-card-stat green">R37,150</div>
+          </div>
+        </div>
+
+        <div class="dash-ops">
+          <div class="dash-ops-title">Operations Center</div>
+          <div class="dash-ops-row">
+            <div class="dash-ops-item">
+              <div class="doi-icon">🏡</div>
+              <div class="doi-info">
+                <div class="doi-label">Upcoming Check-Ins</div>
+                <div class="doi-val">7 today</div>
+              </div>
+            </div>
+            <div class="dash-ops-item">
+              <div class="doi-icon">🧹</div>
+              <div class="doi-info">
+                <div class="doi-label">Cleaning Tasks</div>
+                <div class="doi-val">9 scheduled</div>
+              </div>
+            </div>
+            <div class="dash-ops-item">
+              <div class="doi-icon">🔧</div>
+              <div class="doi-info">
+                <div class="doi-label">Maintenance Issues</div>
+                <div class="doi-val">3 pending</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:white;border:1px solid var(--gray-200);border-radius:var(--radius);padding:18px 20px;">
+          <div style="font-weight:700;font-size:15px;margin-bottom:14px;">AI Automation Stats — This Month</div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;">
+            <div style="text-align:center">
+              <div style="font-size:32px;font-weight:800;color:var(--blue)">74%</div>
+              <div style="font-size:12px;color:var(--gray-500);font-weight:500">Automation Rate</div>
+            </div>
+            <div style="text-align:center">
+              <div style="font-size:32px;font-weight:800;color:var(--green)">28s</div>
+              <div style="font-size:12px;color:var(--gray-500);font-weight:500">Avg Response Time</div>
+            </div>
+            <div style="text-align:center">
+              <div style="font-size:32px;font-weight:800;color:var(--orange)">3.2h</div>
+              <div style="font-size:12px;color:var(--gray-500);font-weight:500">Saved Daily</div>
+            </div>
+            <div style="text-align:center">
+              <div style="font-size:32px;font-weight:800;color:#7c3aed">4.87</div>
+              <div style="font-size:12px;color:var(--gray-500);font-weight:500">Guest Rating ⭐</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ MESSAGES VIEW ══ -->
+    <div id="view-messages" class="view active">
+      <div class="messages-layout">
+        <!-- Inbox Panel -->
+        <div class="inbox-panel">
+          <div class="inbox-header">
+            <div class="inbox-title">Unified Inbox</div>
+            <div class="channel-tabs">
+              <div class="ch-tab active">All</div>
+              <div class="ch-tab">Airbnb</div>
+              <div class="ch-tab">Booking.com</div>
+              <div class="ch-tab">SMS</div>
+              <div class="ch-tab">Email</div>
+              <div class="ch-tab whatsapp">WhatsApp</div>
+            </div>
+          </div>
+          <div class="inbox-search">
+            <div class="search-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input class="search-input" placeholder="Search...">
+            </div>
+          </div>
+          <div class="inbox-list">
+            <div class="conv-item active" onclick="selectConv(this,'sarah')">
+              <div class="avatar av-green">
+                <div class="avatar-initials">SM</div>
+                <div class="av-dot"></div>
+              </div>
+              <div class="conv-info">
+                <div class="conv-top">
+                  <span class="conv-name">Sarah Mitchell</span>
+                  <span class="conv-time">2m ago</span>
+                </div>
+                <div class="conv-subject">WiFi Password?</div>
+                <div class="conv-status">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="check-green"><polyline points="20 6 9 17 4 12"/></svg>
+                  AI Handled 2m ago
+                </div>
+              </div>
+            </div>
+            <div class="conv-item escalated" onclick="selectConv(this,'tom')">
+              <div class="avatar av-blue">
+                <div class="avatar-initials">TL</div>
+              </div>
+              <div class="conv-info">
+                <div class="conv-top">
+                  <span class="conv-name">Tom &amp; Lisa</span>
+                  <span class="conv-time">5m ago</span>
+                </div>
+                <div class="conv-subject red">Late Checkout Request</div>
+                <div class="conv-status">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="alert-red"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  Needs Review 5m ago
+                </div>
+              </div>
+            </div>
+            <div class="conv-item" onclick="selectConv(this,'anna')">
+              <div class="avatar av-purple">
+                <div class="avatar-initials">AP</div>
+              </div>
+              <div class="conv-info">
+                <div class="conv-top">
+                  <span class="conv-name">Anna Patel</span>
+                  <span class="conv-time">10m ago</span>
+                </div>
+                <div class="conv-subject">Check-In Info?</div>
+                <div class="conv-status">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="check-green"><polyline points="20 6 9 17 4 12"/></svg>
+                  AI Handled 10m ago
+                </div>
+              </div>
+            </div>
+            <div class="conv-item" onclick="selectConv(this,'john')">
+              <div class="avatar" style="background:linear-gradient(135deg,#f59e0b,#fbbf24)">
+                <div class="avatar-initials">JD</div>
+              </div>
+              <div class="conv-info">
+                <div class="conv-top">
+                  <span class="conv-name">John Davis</span>
+                  <span class="conv-time">22m ago</span>
+                </div>
+                <div class="conv-subject">Parking Instructions</div>
+                <div class="conv-status">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="check-green"><polyline points="20 6 9 17 4 12"/></svg>
+                  AI Handled 22m ago
+                </div>
+              </div>
+            </div>
+            <div class="conv-item" onclick="selectConv(this,'maria')">
+              <div class="avatar" style="background:linear-gradient(135deg,#ec4899,#f472b6)">
+                <div class="avatar-initials">MK</div>
+              </div>
+              <div class="conv-info">
+                <div class="conv-top">
+                  <span class="conv-name">Maria Kim</span>
+                  <span class="conv-time">45m ago</span>
+                </div>
+                <div class="conv-subject">Early Check-In Request</div>
+                <div class="conv-status">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="check-green"><polyline points="20 6 9 17 4 12"/></svg>
+                  AI Handled 45m ago
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chat Panel -->
+        <div class="chat-panel">
+          <div class="chat-header">
+            <div class="avatar av-green" style="width:38px;height:38px;">
+              <div class="avatar-initials">SM</div>
+              <div class="av-dot"></div>
+            </div>
+            <div class="chat-header-info">
+              <div class="chat-header-name">Sarah Mitchell</div>
+              <div class="chat-header-sub">Unit 5 – Ocean Vista Rentals</div>
+            </div>
+            <div class="chat-header-actions">
+              <button class="btn-blue-sm">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="btn-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+              </div>
+            </div>
+          </div>
+
+          <div class="chat-messages" id="chat-messages">
+            <div class="msg-bubble msg-guest">Hi, what's the WiFi password?</div>
+            <div class="msg-bubble msg-ai">
+              Hi Sarah! The WiFi network is <span class="ai-link">OceanViewGuest</span> and the password is <span class="ai-link">sunset2026</span>.
+              Let me know if you need anything else!
+            </div>
+            <div class="msg-actions">
+              <button class="msg-action-btn" onclick="showToast('Marked as resolved ✓')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z"/></svg>
+                Mark as Resolved
+              </button>
+              <span style="color:var(--gray-300)">|</span>
+              <button class="msg-action-btn escalate" onclick="showToast('Escalated to human agent')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                Escalate to Human
+              </button>
+            </div>
+          </div>
+
+          <div class="chat-input-area">
+            <div class="btn-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 8 12 12 14 14"/></svg>
+            </div>
+            <textarea class="chat-input" rows="1" placeholder="Type a message..." id="message-input" onkeydown="handleMsgKey(event)"></textarea>
+            <div class="btn-icon" onclick="sendMessage()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Panel -->
+        <div class="right-panel">
+          <div class="rp-section">
+            <div class="rp-section-header">
+              <span class="rp-section-title">Guest Details</span>
+              <span class="rp-more"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></span>
+            </div>
+            <div class="guest-card">
+              <div class="guest-avatar">
+                <div class="avatar av-green" style="width:44px;height:44px;border-radius:50%">
+                  <div class="avatar-initials">SM</div>
+                </div>
+              </div>
+              <div class="guest-name-block">
+                <div class="name">Sarah Mitchell</div>
+                <div class="unit">Unit 5 · Ocean Vista Rentals</div>
+              </div>
+            </div>
+            <div class="detail-row">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              Check-in: <strong>Mar 10 – Mar 14</strong>
+            </div>
+            <div class="detail-row">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+              Guests: <strong>2 Adults</strong>
+            </div>
+            <div class="detail-row">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              Booking via: <a href="#">Airbnb</a>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="rp-section">
+            <div class="rp-section-header">
+              <span class="rp-section-title">Property Info</span>
+              <span class="rp-more"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></span>
+            </div>
+            <div class="detail-row">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0114.08 0"/><path d="M1.42 9a16 16 0 0121.16 0"/><path d="M8.53 16.11a6 6 0 016.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+              WiFi: <strong>OceanViewGuest / sunset2026</strong>
+            </div>
+            <div class="detail-row">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+              Parking Spot #3 · garage code <strong>4821</strong>
+            </div>
+            <div class="detail-row">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+              House Manual: <a href="#">Ocean Vista Rentals Guide</a>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="rp-section">
+            <div class="rp-section-header">
+              <span class="rp-section-title">Concierge Suggestions</span>
+              <span class="rp-more"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></span>
+            </div>
+            <div class="concierge-icons">
+              <div class="conc-item" onclick="navigate('concierge')">
+                <div class="conc-icon">🍷</div>
+                <div class="conc-label">Wine Tour</div>
+              </div>
+              <div class="conc-item" onclick="navigate('concierge')">
+                <div class="conc-icon">🍽️</div>
+                <div class="conc-label">Restaurant Reservations</div>
+              </div>
+              <div class="conc-item" onclick="navigate('concierge')">
+                <div class="conc-icon">🚗</div>
+                <div class="conc-label">Airport Transfer</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ OPERATIONS VIEW ══ -->
+    <div id="view-operations" class="view">
+      <div class="ops-content">
+        <div style="font-size:18px;font-weight:800;margin-bottom:16px;">Operations Dashboard</div>
+
+        <div class="ops-stats-row">
+          <div class="ops-stat">
+            <div class="s-num blue">12</div>
+            <div class="s-label">Check-Ins Today</div>
+          </div>
+          <div class="ops-stat">
+            <div class="s-num green">9</div>
+            <div class="s-label">Cleaning Tasks</div>
+          </div>
+          <div class="ops-stat">
+            <div class="s-num orange">3</div>
+            <div class="s-label">Maintenance Issues</div>
+          </div>
+          <div class="ops-stat">
+            <div class="s-num red">2</div>
+            <div class="s-label">Overdue Tasks</div>
+          </div>
+        </div>
+
+        <div class="ops-grid">
+          <!-- Upcoming Check-ins -->
+          <div class="ops-card">
+            <div class="ops-card-header">
+              <span class="ops-card-title">Upcoming Check-Ins</span>
+              <a href="#" style="font-size:12px;color:var(--blue);text-decoration:none;font-weight:500;">View All</a>
+            </div>
+            <div class="ops-card-body">
+              <div class="checkin-row">
+                <div class="checkin-top">
+                  <div>
+                    <div class="checkin-unit">Unit 5</div>
+                    <div class="checkin-guest">Sarah Mitchell</div>
+                  </div>
+                  <div style="text-align:right">
+                    <span class="badge badge-today">Today</span><br>
+                    <span class="checkin-time">15:00</span>
+                  </div>
+                </div>
+                <div class="checkin-actions">
+                  <button class="btn-sm" onclick="showToast('Instructions sent to Sarah!')">Send Instructions</button>
+                  <button class="btn-sm">View Guest</button>
+                </div>
+              </div>
+              <div class="checkin-row">
+                <div class="checkin-top">
+                  <div>
+                    <div class="checkin-unit">Unit 8</div>
+                    <div class="checkin-guest">David Cole</div>
+                  </div>
+                  <div style="text-align:right">
+                    <span class="badge badge-today">Today</span><br>
+                    <span class="checkin-time">16:00</span>
+                  </div>
+                </div>
+              </div>
+              <div class="checkin-row">
+                <div class="checkin-top">
+                  <div>
+                    <div class="checkin-unit">Unit 3</div>
+                    <div class="checkin-guest">Anna Patel</div>
+                  </div>
+                  <div style="text-align:right">
+                    <span class="badge badge-tomorrow">Tomorrow</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cleaning Tasks -->
+          <div class="ops-card">
+            <div class="ops-card-header">
+              <span class="ops-card-title">Cleaning Tasks</span>
+              <a href="#" style="font-size:12px;color:var(--blue);text-decoration:none;font-weight:500;">See All</a>
+            </div>
+            <div class="ops-card-body">
+              <div class="task-row">
+                <div class="task-avatar">
+                  <div class="avatar av-purple" style="width:28px;height:28px;border-radius:50%">
+                    <div class="avatar-initials" style="font-size:10px">M</div>
+                  </div>
+                </div>
+                <div class="task-info">
+                  <div class="task-name">Unit 5 · Maria</div>
+                  <div class="task-sub">11:30</div>
+                </div>
+                <span class="badge badge-progress">In Progress</span>
+              </div>
+              <div style="display:flex;gap:6px;padding:0 0 6px 0;">
+                <button class="btn-sm green" onclick="showToast('Task marked complete ✓')">Mark Complete</button>
+                <button class="btn-sm">Reassign</button>
+              </div>
+              <div class="task-row">
+                <div class="task-info">
+                  <div class="task-name">Unit 8 · Cleaning Team A</div>
+                  <div class="task-sub">13:00</div>
+                </div>
+                <span class="badge badge-pending">Pending</span>
+              </div>
+              <div class="task-row">
+                <div class="task-info">
+                  <div class="task-name">Unit 9 · Cleaning Team B</div>
+                  <div class="task-sub">15:30</div>
+                </div>
+                <span class="badge badge-pending">Pending</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Maintenance Issues -->
+          <div class="ops-card">
+            <div class="ops-card-header">
+              <span class="ops-card-title">Maintenance Issues</span>
+              <a href="#" style="font-size:12px;color:var(--blue);text-decoration:none;font-weight:500;">See All</a>
+            </div>
+            <div class="ops-card-body">
+              <div class="issue-row">
+                <div class="issue-top">
+                  <div>
+                    <div class="issue-title">Unit 3 · Faucet Leaking</div>
+                    <div class="issue-meta">Anna Patel · 8:32 AM</div>
+                  </div>
+                  <span class="badge badge-urgent">Urgent</span>
+                </div>
+                <div class="issue-desc">Bathroom faucet leaking</div>
+                <div class="issue-actions">
+                  <button class="btn-sm primary" onclick="showToast('Vendor assigned!')">Assign Vendor</button>
+                  <button class="btn-sm" onclick="showToast('Repair scheduled!')">Schedule Repair</button>
+                </div>
+              </div>
+              <div class="issue-row">
+                <div class="issue-top">
+                  <div>
+                    <div style="font-weight:600;font-size:13px;color:var(--orange)">Unit 9 · Aircon Not Working</div>
+                    <div class="issue-meta">Reported 2 hours ago</div>
+                  </div>
+                  <span class="badge badge-new">New</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ ANALYTICS VIEW ══ -->
+    <div id="view-analytics" class="view">
+      <div class="analytics-content">
+        <div style="font-size:18px;font-weight:800;margin-bottom:16px;">Owner Reporting Dashboard</div>
+        <div class="analytics-stats">
+          <div class="a-stat">
+            <div class="a-label">Revenue This Month</div>
+            <div class="a-value blue">R185,000</div>
+            <div class="a-sub">↑ 12% vs last month</div>
+          </div>
+          <div class="a-stat">
+            <div class="a-label">Occupancy Rate</div>
+            <div class="a-value">82%</div>
+            <div class="a-sub" style="color:var(--green)">→ Stable</div>
+          </div>
+          <div class="a-stat">
+            <div class="a-label">Avg Daily Rate</div>
+            <div class="a-value">R2,450</div>
+            <div class="a-sub">Per property</div>
+          </div>
+          <div class="a-stat">
+            <div class="a-label">Guest Rating</div>
+            <div class="a-value" style="color:#f59e0b">4.87 ⭐</div>
+            <div class="a-sub" style="color:var(--green)">↑ 0.12 this month</div>
+          </div>
+        </div>
+
+        <div class="analytics-grid">
+          <div class="a-card">
+            <div class="a-card-title">Monthly Revenue</div>
+            <div class="bar-chart">
+              <div class="bar-group"><div class="bar" style="height:40%"></div><div class="bar-label">Jan</div></div>
+              <div class="bar-group"><div class="bar" style="height:55%"></div><div class="bar-label">Feb</div></div>
+              <div class="bar-group"><div class="bar" style="height:72%"></div><div class="bar-label">Mar</div></div>
+              <div class="bar-group"><div class="bar" style="height:100%"></div><div class="bar-label">Apr</div></div>
+            </div>
+            <div style="margin-top:16px;">
+              <div class="rev-row">
+                <div><div class="rev-unit">Unit 5</div><div class="rev-guest">Sarah Mitchell · Today 15:00</div></div>
+                <div class="rev-amount">R150,000 ›</div>
+              </div>
+              <div class="rev-row">
+                <div><div class="rev-unit">Unit 8</div><div class="rev-guest">Anna Patel</div></div>
+                <div class="rev-amount">R170,000 ›</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="a-card">
+            <div class="a-card-title">Booking Sources</div>
+            <div class="pie-wrap">
+              <svg class="pie-chart" viewBox="0 0 36 36">
+                <circle r="15.9" cx="18" cy="18" fill="transparent" stroke="#2563eb" stroke-width="3.8" stroke-dasharray="55 45" stroke-dashoffset="25"/>
+                <circle r="15.9" cx="18" cy="18" fill="transparent" stroke="#93c5fd" stroke-width="3.8" stroke-dasharray="30 70" stroke-dashoffset="-30"/>
+                <circle r="15.9" cx="18" cy="18" fill="transparent" stroke="#f59e0b" stroke-width="3.8" stroke-dasharray="15 85" stroke-dashoffset="-60"/>
+              </svg>
+              <div class="pie-legend">
+                <div class="pie-leg-item"><div class="pie-dot" style="background:#2563eb"></div>Airbnb · 55%</div>
+                <div class="pie-leg-item"><div class="pie-dot" style="background:#93c5fd"></div>Booking.com · 30%</div>
+                <div class="pie-leg-item"><div class="pie-dot" style="background:#f59e0b"></div>Direct · 15%</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="a-card">
+            <div class="a-card-title">Concierge Revenue</div>
+            <div class="rev-row">
+              <div><div class="rev-unit">Wine Tours</div><div class="rev-guest">12 bookings</div></div>
+              <div class="rev-amount">R21,000 ›</div>
+            </div>
+            <div class="rev-row">
+              <div><div class="rev-unit">Airport Transfers</div><div class="rev-guest">19 bookings</div></div>
+              <div class="rev-amount">R16,150 ›</div>
+            </div>
+            <div class="rev-row">
+              <div><div class="rev-unit">Private Chef</div><div class="rev-guest">3 bookings</div></div>
+              <div class="rev-amount">R8,400 ›</div>
+            </div>
+            <button onclick="showToast('Downloading PDF report...')" style="margin-top:14px;width:100%;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;padding:9px;font-size:13px;font-weight:500;cursor:pointer;color:var(--gray-700);font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .15s;" onmouseover="this.style.borderColor='var(--blue)'" onmouseout="this.style.borderColor='var(--gray-200)'">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Download Owner Report (PDF)
+            </button>
+          </div>
+
+          <div class="a-card">
+            <div class="a-card-title">Property Health</div>
+            <div class="rev-row"><span>Cleaning Issues</span><strong>2</strong></div>
+            <div class="rev-row"><span>Maintenance Issues</span><strong>1</strong></div>
+            <div class="rev-row"><span>Guest Complaints</span><strong style="color:var(--green)">0</strong></div>
+            <div style="margin-top:12px;border-top:1px solid var(--gray-100);padding-top:12px;">
+              <div class="a-card-title" style="font-size:13px;">Guest Insights</div>
+              <div style="display:flex;flex-direction:column;gap:7px;margin-top:8px;">
+                <div style="font-size:12.5px;color:var(--gray-600);display:flex;align-items:center;gap:7px;">⏰ Late Checkout</div>
+                <div style="font-size:12.5px;color:var(--gray-600);display:flex;align-items:center;gap:7px;">🍽️ Restaurant Recommendations</div>
+                <div style="font-size:12.5px;color:var(--gray-600);display:flex;align-items:center;gap:7px;">🚗 Airport Transfers</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ CONCIERGE VIEW ══ -->
+    <div id="view-concierge" class="view">
+      <div class="concierge-content">
+        <div class="conc-page-header">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;padding:7px 12px;font-weight:500;font-size:13.5px;display:flex;align-items:center;gap:8px;cursor:pointer">
+              🎩 Concierge
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+          </div>
+          <div class="conc-tabs" style="margin-top:12px;">
+            <div class="conc-tab active">All</div>
+            <div class="conc-tab">Wine &amp; Dine</div>
+            <div class="conc-tab">Local Tours</div>
+            <div class="conc-tab">In-House Services</div>
+          </div>
+        </div>
+
+        <div style="margin-bottom:14px;">
+          <div class="search-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input class="search-input" style="width:100%" placeholder="Search for services...">
+          </div>
+        </div>
+
+        <div style="font-weight:700;font-size:15px;margin-bottom:12px;">Local Services &amp; Experiences</div>
+
+        <div class="services-grid">
+          <div class="service-card">
+            <div class="service-img">🍷</div>
+            <div class="service-body">
+              <div class="service-name">Wine Tour</div>
+              <div class="service-desc">Guided tour of local vineyards with wine tasting</div>
+              <div class="service-footer">
+                <div>
+                  <div class="service-price">Starts at R1,750</div>
+                  <span class="comm-badge">20% Commission</span>
+                </div>
+                <button class="btn-book" onclick="showToast('Wine Tour booking initiated!')">Book</button>
+              </div>
+            </div>
+          </div>
+          <div class="service-card">
+            <div class="service-img">👨‍🍳</div>
+            <div class="service-body">
+              <div class="service-name">Private Chef</div>
+              <div class="service-desc">In-house chef to cook a custom meal</div>
+              <div class="service-footer">
+                <div>
+                  <div class="service-price">Starts at R2,800</div>
+                  <span class="comm-badge">20% Commission</span>
+                </div>
+                <button class="btn-book" onclick="showToast('Private Chef booking initiated!')">Book</button>
+              </div>
+            </div>
+          </div>
+          <div class="service-card">
+            <div class="service-img">⛵</div>
+            <div class="service-body">
+              <div class="service-name">Sunset Sail</div>
+              <div class="service-desc">Private evening sail to see the sunset</div>
+              <div class="service-footer">
+                <div>
+                  <div class="service-price">Starts at R3,200</div>
+                  <span class="comm-badge" style="background:#fef3c7;color:#92400e;">15% Commission</span>
+                </div>
+                <button class="btn-book" onclick="showToast('Sunset Sail booking initiated!')">Book</button>
+              </div>
+            </div>
+          </div>
+          <div class="service-card">
+            <div class="service-img">✈️</div>
+            <div class="service-body">
+              <div class="service-name">Airport Transfer</div>
+              <div class="service-desc">Luxury car transport to and from the airport</div>
+              <div class="service-footer">
+                <div>
+                  <div class="service-price">Starts at R850</div>
+                  <span class="comm-badge" style="background:#fef3c7;color:#92400e;">15% Commission</span>
+                </div>
+                <button class="btn-book" onclick="showToast('Airport Transfer booking initiated!')">Book</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ KNOWLEDGE BASE VIEW ══ -->
+    <div id="view-knowledge" class="view">
+      <div class="kb-content">
+        <div class="kb-sidebar">
+          <div style="padding:14px 16px;border-bottom:1px solid var(--gray-100)">
+            <div style="font-size:16px;font-weight:800;margin-bottom:10px;">
+              <span style="color:var(--blue)">AI</span> Knowledge Base Builder
+            </div>
+            <input class="kb-search" placeholder="Search knowledge base...">
+          </div>
+          <div style="padding:10px 16px;border-bottom:1px solid var(--gray-100)">
+            <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;padding:7px 12px;font-size:13px;font-weight:500;display:flex;align-items:center;gap:8px;cursor:pointer">
+              🏢 Ocean Vista Rentals
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+          </div>
+          <nav class="kb-nav">
+            <div class="kb-nav-item active">
+              <span style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>Recent</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+            <div class="kb-nav-item">
+              <span style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>All Content</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+            <div class="kb-nav-item">
+              <span style="display:flex;align-items:center;gap:8px">📋 Check-In Instructions</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+            <div class="kb-nav-item">
+              <span style="display:flex;align-items:center;gap:8px">📜 House Rules</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+            <div class="kb-nav-item">
+              <span style="display:flex;align-items:center;gap:8px">📶 WiFi &amp; Technology</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+            <div class="kb-nav-item">
+              <span style="display:flex;align-items:center;gap:8px">🚗 Parking &amp; Transport</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+            <div class="kb-nav-item">
+              <span style="display:flex;align-items:center;gap:8px">🎩 Concierge Info</span>
+            </div>
+            <div class="kb-nav-item">
+              <span style="display:flex;align-items:center;gap:8px">🔑 Access Codes</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+            <div class="kb-nav-item">
+              <span style="display:flex;align-items:center;gap:8px">❓ Guest FAQs</span>
+            </div>
+            <div class="kb-add-cat">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              New Category
+            </div>
+          </nav>
+          <div class="kb-drop-zone">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg>
+            Drag and drop files here, or <span class="kb-drop-link">Browse</span><br>
+            <span style="font-size:10.5px;">PDF, DOC, DOCX · Max 10MB</span>
+          </div>
+        </div>
+
+        <div class="kb-main">
+          <div class="kb-header">
+            <h2>All Content</h2>
+            <div class="kb-actions">
+              <button class="btn-blue-sm" onclick="showToast('New item created!')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                New Item
+              </button>
+              <select class="sort-select"><option>Recent</option><option>Name</option><option>Category</option></select>
+            </div>
+          </div>
+
+          <div class="kb-items">
+            <div class="kb-item">
+              <div class="kb-item-icon" style="color:var(--red)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg></div>
+              <div class="kb-item-info">
+                <div class="kb-item-name">Check-In Instructions for Unit 5</div>
+                <div class="kb-item-meta">4 days ago · <span class="kb-item-tag">Check-In Instructions</span> <span class="kb-item-tag blue">PDF</span></div>
+              </div>
+              <div class="toggle"></div>
+            </div>
+            <div class="kb-item">
+              <div class="kb-item-icon" style="color:var(--red)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg></div>
+              <div class="kb-item-info">
+                <div class="kb-item-name">House Rules &amp; Regulations</div>
+                <div class="kb-item-meta">3 weeks ago · <span class="kb-item-tag">House Rules</span> <span class="kb-item-tag">2 Pages</span></div>
+              </div>
+              <div class="toggle"></div>
+            </div>
+            <div class="kb-item">
+              <div class="kb-item-icon" style="color:var(--red)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg></div>
+              <div class="kb-item-info">
+                <div class="kb-item-name">Unit 5 WiFi &amp; Smart TV Guide</div>
+                <div class="kb-item-meta">2 weeks ago · <span class="kb-item-tag">WiFi &amp; Technology</span> <span class="kb-item-tag blue">PDF</span></div>
+              </div>
+              <div class="toggle"></div>
+            </div>
+            <div class="kb-item">
+              <div class="kb-item-icon" style="color:var(--red)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg></div>
+              <div class="kb-item-info">
+                <div class="kb-item-name">Parking Information</div>
+                <div class="kb-item-meta">1 month ago · <span class="kb-item-tag">Parking &amp; Transport</span> <span class="kb-item-tag blue">PDF</span></div>
+              </div>
+              <div class="toggle"></div>
+            </div>
+            <div class="kb-item">
+              <div class="kb-item-icon" style="color:var(--gray-400)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg></div>
+              <div class="kb-item-info">
+                <div class="kb-item-name">Access Codes &amp; Smart Lock Guide</div>
+                <div class="kb-item-meta">1 month ago · <span class="kb-item-tag">Access Codes</span> <span class="kb-item-tag">1 Page</span></div>
+              </div>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--gray-400)"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+            <div class="kb-item">
+              <div class="kb-item-icon" style="color:var(--red)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg></div>
+              <div class="kb-item-info">
+                <div class="kb-item-name">Recommended Restaurants</div>
+                <div class="kb-item-meta">2 months ago · <span class="kb-item-tag">Concierge Info</span> <span class="kb-item-tag">1 Page</span></div>
+              </div>
+              <div class="toggle"></div>
+            </div>
+            <div class="kb-item">
+              <div class="kb-item-icon" style="color:var(--red)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg></div>
+              <div class="kb-item-info">
+                <div class="kb-item-name">House Manual – Ocean Vista Rentals</div>
+                <div class="kb-item-meta">4 months ago · <span class="kb-item-tag">Master Document</span> <span class="kb-item-tag">3 Pages</span></div>
+              </div>
+              <div class="toggle"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ PLACEHOLDER VIEWS ══ -->
+    <div id="view-calendar" class="view">
+      <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--gray-400);font-size:16px;">📅 Calendar — Coming Soon</div>
+    </div>
+    <div id="view-properties" class="view">
+      <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--gray-400);font-size:16px;">🏠 Properties — Coming Soon</div>
+    </div>
+    <div id="view-settings" class="view">
+      <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--gray-400);font-size:16px;">⚙️ Settings — Coming Soon</div>
+    </div>
+
+  </div><!-- /page-content -->
+</div><!-- /main -->
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+  const views = ['dashboard','messages','operations','analytics','concierge','knowledge','calendar','properties','settings'];
+  const navMap = {
+    'dashboard': 0, 'messages': 1, 'operations': 2,
+    'calendar': 3, 'properties': 4, 'concierge': 5,
+    'analytics': 6, 'knowledge': 7, 'settings': 8
+  };
+
+  function navigate(view) {
+    views.forEach(v => {
+      document.getElementById('view-' + v)?.classList.remove('active');
+    });
+    document.getElementById('view-' + view)?.classList.add('active');
+
+    const navItems = document.querySelectorAll('.nav-item');
+    navItems.forEach(n => n.classList.remove('active'));
+    if (navMap[view] !== undefined) navItems[navMap[view]]?.classList.add('active');
+  }
+
+  function selectConv(el, guest) {
+    document.querySelectorAll('.conv-item').forEach(i => i.classList.remove('active'));
+    el.classList.add('active');
+
+    const convData = {
+      sarah: {
+        name: 'Sarah Mitchell', unit: 'Unit 5 – Ocean Vista Rentals',
+        msgs: [
+          { type: 'guest', text: 'Hi, what\'s the WiFi password?' },
+          { type: 'ai', text: 'Hi Sarah! The WiFi network is <span class="ai-link">OceanViewGuest</span> and the password is <span class="ai-link">sunset2026</span>. Let me know if you need anything else!' }
+        ]
+      },
+      tom: {
+        name: 'Tom & Lisa', unit: 'Unit 12 – Ocean Vista Rentals',
+        msgs: [
+          { type: 'guest', text: 'Hi, we\'d love to stay an extra night. Can we do late checkout until 2pm?' },
+          { type: 'ai', text: 'Hi Tom! I\'ve checked availability. Late checkout until 2pm is available for <span class="ai-link">R850</span>. Would you like to proceed? I\'ll send a payment link.' }
+        ]
+      },
+      anna: {
+        name: 'Anna Patel', unit: 'Unit 3 – Ocean Vista Rentals',
+        msgs: [
+          { type: 'guest', text: 'When can we check in? And how do we get the keys?' },
+          { type: 'ai', text: 'Hi Anna! Check-in is from <span class="ai-link">3:00 PM</span> tomorrow. The key is in a lockbox at the entrance – the code is <span class="ai-link">4829</span>. Apartment 3 is on the first floor. See you soon!' }
+        ]
+      },
+      john: {
+        name: 'John Davis', unit: 'Unit 7 – Ocean Vista Rentals',
+        msgs: [
+          { type: 'guest', text: 'Where is the parking?' },
+          { type: 'ai', text: 'Hi John! You have <span class="ai-link">Parking Spot #7</span> in the basement garage. Enter via Ocean Avenue, and the garage code is <span class="ai-link">4821</span>.' }
+        ]
+      },
+      maria: {
+        name: 'Maria Kim', unit: 'Unit 9 – Ocean Vista Rentals',
+        msgs: [
+          { type: 'guest', text: 'Is there any way to check in early, around 11am?' },
+          { type: 'ai', text: 'Hi Maria! I\'ve checked the cleaning schedule – the unit will be ready by <span class="ai-link">1:00 PM</span>. Early check-in at 1pm is available at no extra cost. Does that work for you?' }
+        ]
+      }
+    };
+
+    const data = convData[guest];
+    if (!data) return;
+
+    document.querySelector('.chat-header-name').textContent = data.name;
+    document.querySelector('.chat-header-sub').textContent = data.unit;
+
+    const chatEl = document.getElementById('chat-messages');
+    chatEl.innerHTML = data.msgs.map(m =>
+      `<div class="msg-bubble ${m.type === 'guest' ? 'msg-guest' : 'msg-ai'}">${m.text}</div>`
+    ).join('') + `
+      <div class="msg-actions">
+        <button class="msg-action-btn" onclick="showToast('Marked as resolved ✓')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z"/></svg>
+          Mark as Resolved
+        </button>
+        <span style="color:var(--gray-300)">|</span>
+        <button class="msg-action-btn escalate" onclick="showToast('Escalated to human agent')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+          Escalate to Human
+        </button>
+      </div>`;
+  }
+
+  function sendMessage() {
+    const input = document.getElementById('message-input');
+    const text = input.value.trim();
+    if (!text) return;
+    const chatEl = document.getElementById('chat-messages');
+    const userMsg = document.createElement('div');
+    userMsg.className = 'msg-bubble msg-ai';
+    userMsg.textContent = text;
+    chatEl.insertBefore(userMsg, chatEl.lastElementChild);
+    input.value = '';
+    chatEl.scrollTop = chatEl.scrollHeight;
+    showToast('Message sent!');
+  }
+
+  function handleMsgKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  }
+
+  let toastTimer;
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+  }
+
+  // Toggle KB items
+  document.querySelectorAll('.toggle').forEach(t => {
+    t.addEventListener('click', () => { t.classList.toggle('off'); });
+  });
+
+  // Channel tabs
+  document.querySelectorAll('.ch-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      tab.closest('.channel-tabs').querySelectorAll('.ch-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+    });
+  });
+
+  // Concierge tabs
+  document.querySelectorAll('.conc-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      tab.closest('.conc-tabs').querySelectorAll('.conc-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+    });
+  });
+</script>
+</body>
+</html>
