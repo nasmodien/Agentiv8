@@ -1,0 +1,230 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  role          String    @default("MANAGER")
+  image         String?
+  emailVerified DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  accounts      Account[]
+  sessions      Session[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Organization {
+  id             String          @id @default(cuid())
+  name           String
+  slug           String          @unique
+  createdAt      DateTime        @default(now())
+  properties     Property[]
+  knowledgeItems KnowledgeItem[]
+  conciergeServices ConciergeService[]
+}
+
+model Property {
+  id             String           @id @default(cuid())
+  orgId          String
+  name           String
+  unitNumber     String?
+  address        String?
+  wifiNetwork    String?
+  wifiPassword   String?
+  parkingSpot    String?
+  parkingCode    String?
+  checkInTime    String?
+  checkOutTime   String?
+  createdAt      DateTime         @default(now())
+  organization   Organization     @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  bookings       Booking[]
+  conversations  Conversation[]
+  cleaningTasks  CleaningTask[]
+  maintenanceIssues MaintenanceIssue[]
+}
+
+enum BookingChannel {
+  AIRBNB
+  BOOKING_COM
+  DIRECT
+  WHATSAPP
+  SMS
+}
+
+enum BookingStatus {
+  CONFIRMED
+  CHECKED_IN
+  CHECKED_OUT
+  CANCELLED
+}
+
+model Booking {
+  id           String         @id @default(cuid())
+  propertyId   String
+  guestName    String
+  guestEmail   String?
+  guestPhone   String?
+  channel      BookingChannel @default(DIRECT)
+  checkIn      DateTime
+  checkOut     DateTime
+  adults       Int            @default(1)
+  status       BookingStatus  @default(CONFIRMED)
+  property     Property       @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  conversations Conversation[]
+  conciergeBookings ConciergeBooking[]
+}
+
+enum ConversationStatus {
+  AI_HANDLED
+  NEEDS_REVIEW
+  ESCALATED
+  RESOLVED
+}
+
+model Conversation {
+  id            String             @id @default(cuid())
+  bookingId     String?
+  propertyId    String?
+  channel       String
+  status        ConversationStatus @default(AI_HANDLED)
+  lastMessageAt DateTime           @default(now())
+  createdAt     DateTime           @default(now())
+  booking       Booking?           @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  property      Property?          @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  messages      Message[]
+}
+
+enum MessageRole {
+  GUEST
+  AI
+  HUMAN
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  role           MessageRole
+  content        String       @db.Text
+  createdAt      DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+model CleaningTask {
+  id          String     @id @default(cuid())
+  propertyId  String
+  assignee    String?
+  scheduledAt DateTime
+  status      TaskStatus @default(PENDING)
+  createdAt   DateTime   @default(now())
+  property    Property   @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+}
+
+enum IssuePriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum IssueStatus {
+  NEW
+  IN_PROGRESS
+  RESOLVED
+}
+
+model MaintenanceIssue {
+  id          String        @id @default(cuid())
+  propertyId  String
+  title       String
+  description String?       @db.Text
+  priority    IssuePriority @default(MEDIUM)
+  status      IssueStatus   @default(NEW)
+  reportedAt  DateTime      @default(now())
+  property    Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+}
+
+model KnowledgeItem {
+  id           String       @id @default(cuid())
+  orgId        String
+  title        String
+  category     String
+  content      String?      @db.Text
+  fileUrl      String?
+  fileType     String?
+  vectorId     String?
+  enabled      Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+}
+
+model ConciergeService {
+  id           String             @id @default(cuid())
+  orgId        String
+  name         String
+  description  String?            @db.Text
+  emoji        String?
+  price        Float
+  commission   Float              @default(0)
+  category     String
+  enabled      Boolean            @default(true)
+  organization Organization       @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  bookings     ConciergeBooking[]
+}
+
+model ConciergeBooking {
+  id        String           @id @default(cuid())
+  serviceId String
+  bookingId String
+  status    String           @default("PENDING")
+  amount    Float
+  createdAt DateTime         @default(now())
+  service   ConciergeService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  booking   Booking          @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+}
