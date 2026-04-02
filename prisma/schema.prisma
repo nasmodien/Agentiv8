@@ -228,3 +228,14 @@ model ConciergeBooking {
   service   ConciergeService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
   booking   Booking          @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 }
+
+model Setting {
+  id        String   @id @default(cuid())
+  orgId     String
+  key       String
+  value     String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([orgId, key])
+}
