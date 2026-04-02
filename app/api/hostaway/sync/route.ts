@@ -248,7 +248,7 @@ export async function GET(req: NextRequest) {
         }
       }
 
-      results.messages = { synced: messagesSynced };
+      results.messages = { synced: messagesSynced, activeBookingsFound: activeReservationIds.length };
     }
 
     return NextResponse.json({ success: true, results });
