@@ -33,7 +33,7 @@ export default function CalendarPage() {
         const bkgs: Booking[] = data.bookings ?? [];
         setBookings(bkgs);
         // Assign stable colors per property
-        const ids = [...new Set(bkgs.map(b => b.property.id))];
+        const ids = Array.from(new Set(bkgs.map(b => b.property.id)));
         const colorMap: Record<string, string> = {};
         ids.forEach((id, i) => { colorMap[id] = COLORS[i % COLORS.length]; });
         setPropertyColors(colorMap);
@@ -77,7 +77,7 @@ export default function CalendarPage() {
   };
 
   // Unique properties for legend
-  const uniqueProperties = [...new Map(bookings.map(b => [b.property.id, b.property])).values()];
+  const uniqueProperties = Array.from(new Map(bookings.map(b => [b.property.id, b.property])).values());
 
   return (
     <div className="max-w-5xl mx-auto space-y-5 p-6">
