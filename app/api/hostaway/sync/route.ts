@@ -110,11 +110,11 @@ export async function GET(req: NextRequest) {
     // ── SYNC RESERVATIONS (Bookings) ──
     if (type === 'reservations' || type === 'all') {
       const today = new Date();
-      const from = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      const to = new Date(today.getTime() + 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const from = new Date(today.getTime() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const to = new Date(today.getTime() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
       const resRes = await fetch(
-        `${HOSTAWAY_BASE}/reservations?arrivalStartDate=${from}&arrivalEndDate=${to}&limit=100`,
+        `${HOSTAWAY_BASE}/reservations?arrivalStartDate=${from}&arrivalEndDate=${to}&limit=500`,
         { headers }
       );
       if (!resRes.ok) throw new Error(`Failed to fetch reservations: ${resRes.status}`);
