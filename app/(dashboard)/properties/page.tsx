@@ -55,10 +55,10 @@ export default function PropertiesPage() {
         return;
       }
 
-      const { listings, reservations } = data.results ?? {};
+      const { listings, reservations, messages } = data.results ?? {};
       setSyncState('success');
       setSyncMessage(
-        `Synced ${listings?.synced ?? 0} properties and ${reservations?.synced ?? 0} bookings from Hostaway`
+        `Synced ${listings?.synced ?? 0} properties, ${reservations?.synced ?? 0} bookings, and ${messages?.synced ?? 0} messages from Hostaway`
       );
       await fetchProperties();
       setTimeout(() => setSyncState('idle'), 5000);

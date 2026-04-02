@@ -122,6 +122,8 @@ export async function GET(req: NextRequest) {
       const reservations = resData.result ?? [];
 
       let synced = 0;
+      const syncedReservationIds: string[] = [];
+
       for (const res of reservations) {
         const propertyId = String(res.listingId);
 
@@ -162,9 +164,70 @@ export async function GET(req: NextRequest) {
           },
         });
         synced++;
+        syncedReservationIds.push(String(res.id));
       }
 
       results.reservations = { synced, total: reservations.length };
+
+      // ── SYNC MESSAGES (Conversations) ──
+      let messagesSynced = 0;
+      for (const reservationId of syncedReservationIds) {
+        try {
+          const msgRes = await fetch(`${HOSTAWAY_BASE}/reservations/${reservationId}/messages?limit=100`, { headers });
+          if (!msgRes.ok) continue;
+          const msgData = await msgRes.json();
+          const messages: Record<string, unknown>[] = msgData.result ?? [];
+          if (messages.length === 0) continue;
+
+          // Find the booking to get channel + propertyId
+          const booking = await prisma.booking.findUnique({ where: { id: reservationId } });
+          if (!booking) continue;
+
+          // Upsert conversation keyed by booking ID
+          const convId = `ha-${reservationId}`;
+          const lastMsg = messages[messages.length - 1];
+          const lastMsgAt = lastMsg?.createdAt ? new Date(lastMsg.createdAt as string) : new Date();
+
+          await prisma.conversation.upsert({
+            where: { id: convId },
+            create: {
+              id: convId,
+              bookingId: reservationId,
+              propertyId: booking.propertyId,
+              channel: booking.channel,
+              status: 'AI_HANDLED',
+              lastMessageAt: lastMsgAt,
+            },
+            update: {
+              lastMessageAt: lastMsgAt,
+            },
+          });
+
+          // Upsert each message
+          for (const msg of messages) {
+            const msgId = `ha-${reservationId}-${msg.id}`;
+            const role = mapMessageRole(String(msg.type ?? ''));
+            await prisma.message.upsert({
+              where: { id: msgId },
+              create: {
+                id: msgId,
+                conversationId: convId,
+                role,
+                content: String(msg.body ?? ''),
+                createdAt: msg.createdAt ? new Date(msg.createdAt as string) : new Date(),
+              },
+              update: {
+                content: String(msg.body ?? ''),
+              },
+            });
+            messagesSynced++;
+          }
+        } catch {
+          // Skip failed reservation message fetches
+        }
+      }
+
+      results.messages = { synced: messagesSynced };
     }
 
     return NextResponse.json({ success: true, results });
@@ -173,6 +236,12 @@ export async function GET(req: NextRequest) {
     console.error('Hostaway sync error:', msg);
     return NextResponse.json({ error: msg }, { status: 500 });
   }
+}
+
+function mapMessageRole(type: string): 'GUEST' | 'AI' | 'HUMAN' {
+  if (type === 'guest') return 'GUEST';
+  if (type === 'automatic') return 'AI';
+  return 'HUMAN';
 }
 
 function mapStatus(status: string): 'CONFIRMED' | 'CHECKED_IN' | 'CHECKED_OUT' | 'CANCELLED' {
