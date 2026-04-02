@@ -178,8 +178,21 @@ export async function GET(req: NextRequest) {
       };
 
       // ── SYNC MESSAGES (Conversations) ──
+      // Only sync messages for active/recent bookings to avoid timeout
+      const now = new Date();
+      const cutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      const activeBookings = await prisma.booking.findMany({
+        where: {
+          status: { in: ['CONFIRMED', 'CHECKED_IN'] },
+          checkOut: { gte: cutoff },
+        },
+        select: { id: true },
+        take: 50,
+      });
+      const activeReservationIds = activeBookings.map(b => b.id);
+
       let messagesSynced = 0;
-      for (const reservationId of syncedReservationIds) {
+      for (const reservationId of activeReservationIds) {
         try {
           const msgRes = await fetch(`${HOSTAWAY_BASE}/reservations/${reservationId}/messages?limit=100`, { headers });
           if (!msgRes.ok) continue;
