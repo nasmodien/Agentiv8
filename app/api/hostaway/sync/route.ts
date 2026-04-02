@@ -121,20 +121,17 @@ export async function GET(req: NextRequest) {
       const resData = await resRes.json();
       const reservations = resData.result ?? [];
 
-      // Debug: collect skipped IDs to diagnose mismatches
-      const skippedListingIds: string[] = [];
+      const storedProperties = await prisma.property.findMany({ select: { id: true } });
+      const storedIds = new Set(storedProperties.map(p => p.id));
+
       let synced = 0;
       const syncedReservationIds: string[] = [];
+      const firstRes = reservations[0];
 
       for (const res of reservations) {
-        const propertyId = String(res.listingId);
+        const propertyId = String(res.listingMapId ?? res.listingId);
 
-        // Skip if property not synced yet
-        const property = await prisma.property.findUnique({ where: { id: propertyId } });
-        if (!property) {
-          skippedListingIds.push(propertyId);
-          continue;
-        }
+        if (!storedIds.has(propertyId)) continue;
 
         const channelMap: Record<string, 'AIRBNB' | 'BOOKING_COM' | 'DIRECT' | 'WHATSAPP' | 'SMS'> = {
           airbnb: 'AIRBNB',
@@ -172,14 +169,12 @@ export async function GET(req: NextRequest) {
         syncedReservationIds.push(String(res.id));
       }
 
-      // Get stored property IDs for comparison
-      const storedProperties = await prisma.property.findMany({ select: { id: true }, take: 20 });
       results.reservations = {
         synced,
         total: reservations.length,
-        skipped: skippedListingIds.length,
-        skippedListingIds: [...new Set(skippedListingIds)].slice(0, 10),
-        storedPropertyIds: storedProperties.map(p => p.id).slice(0, 10),
+        storedPropertyIds: [...storedIds].slice(0, 10),
+        firstReservationListingId: firstRes ? String(firstRes.listingId) : null,
+        firstReservationListingMapId: firstRes ? String(firstRes.listingMapId) : null,
       };
 
       // ── SYNC MESSAGES (Conversations) ──
