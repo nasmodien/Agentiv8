@@ -4,165 +4,94 @@ import { prisma } from '@/lib/prisma';
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const orgId = searchParams.get('orgId');
-    const period = searchParams.get('period') ?? 'month'; // month | week | year
+    const orgId = searchParams.get('orgId') ?? 'default';
+    const propertyIds = searchParams.getAll('propertyId');
+    const period = searchParams.get('period') ?? '12';
 
-    if (!orgId) {
-      return NextResponse.json({ error: 'orgId required' }, { status: 400 });
+    const monthsBack = parseInt(period, 10);
+    const periodStart = new Date();
+    periodStart.setMonth(periodStart.getMonth() - monthsBack);
+    periodStart.setDate(1);
+    periodStart.setHours(0, 0, 0, 0);
+
+    const bookingWhere = {
+      property: { orgId },
+      status: { not: 'CANCELLED' as const },
+      checkIn: { gte: periodStart },
+      ...(propertyIds.length > 0 ? { propertyId: { in: propertyIds } } : {}),
+    };
+
+    const [bookings, properties] = await Promise.all([
+      prisma.booking.findMany({
+        where: bookingWhere,
+        include: { property: { select: { id: true, name: true, unitNumber: true } } },
+        orderBy: { checkIn: 'asc' },
+      }),
+      prisma.property.findMany({
+        where: { orgId },
+        select: { id: true, name: true, unitNumber: true },
+        orderBy: { name: 'asc' },
+      }),
+    ]);
+
+    const totalRevenue = bookings.reduce((s, b) => s + (b.totalPrice ?? 0), 0);
+    const totalNights = bookings.reduce((s, b) => {
+      return s + Math.max(Math.round((b.checkOut.getTime() - b.checkIn.getTime()) / 86400000), 1);
+    }, 0);
+    const avgDailyRate = totalNights > 0 ? totalRevenue / totalNights : 0;
+
+    const today = new Date();
+    const daysInPeriod = Math.round((today.getTime() - periodStart.getTime()) / 86400000);
+    const propCount = propertyIds.length > 0 ? propertyIds.length : properties.length;
+    const availableNights = daysInPeriod * propCount;
+    const occupancyRate = availableNights > 0 ? Math.min((totalNights / availableNights) * 100, 100) : 0;
+
+    const channelMap: Record<string, { count: number; revenue: number }> = {};
+    for (const b of bookings) {
+      if (!channelMap[b.channel]) channelMap[b.channel] = { count: 0, revenue: 0 };
+      channelMap[b.channel].count++;
+      channelMap[b.channel].revenue += b.totalPrice ?? 0;
     }
 
-    const now = new Date();
-    const startDate =
-      period === 'week'
-        ? new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-        : period === 'year'
-        ? new Date(now.getFullYear(), 0, 1)
-        : new Date(now.getFullYear(), now.getMonth(), 1);
-
-    const properties = await prisma.property.findMany({
-      where: { orgId },
-      include: {
-        bookings: {
-          where: {
-            checkIn: { gte: startDate },
-            status: { not: 'CANCELLED' },
-          },
-        },
-        cleaningTasks: { where: { scheduledAt: { gte: startDate } } },
-        maintenanceIssues: { where: { reportedAt: { gte: startDate } } },
-      },
-    });
-
-    // Revenue calculation (mock: average nightly rate × nights)
-    const avgNightlyRate = 2450;
-    let totalRevenue = 0;
-    let totalNights = 0;
-    let totalBookings = 0;
-
-    for (const prop of properties) {
-      for (const booking of prop.bookings) {
-        const nights = Math.ceil(
-          (booking.checkOut.getTime() - booking.checkIn.getTime()) / (1000 * 60 * 60 * 24)
-        );
-        totalNights += nights;
-        totalRevenue += nights * avgNightlyRate;
-        totalBookings++;
-      }
+    const propertyMap: Record<string, { name: string; unitNumber: string | null; revenue: number; bookings: number; nights: number }> = {};
+    for (const b of bookings) {
+      const pid = b.property.id;
+      if (!propertyMap[pid]) propertyMap[pid] = { name: b.property.name, unitNumber: b.property.unitNumber, revenue: 0, bookings: 0, nights: 0 };
+      propertyMap[pid].revenue += b.totalPrice ?? 0;
+      propertyMap[pid].bookings++;
+      propertyMap[pid].nights += Math.max(Math.round((b.checkOut.getTime() - b.checkIn.getTime()) / 86400000), 1);
     }
 
-    // AI stats
-    const totalMessages = await prisma.message.count({
-      where: {
-        createdAt: { gte: startDate },
-        conversation: { property: { orgId } },
-      },
-    });
-
-    const aiMessages = await prisma.message.count({
-      where: {
-        createdAt: { gte: startDate },
-        role: 'AI',
-        conversation: { property: { orgId } },
-      },
-    });
-
-    const automationRate = totalMessages > 0 ? Math.round((aiMessages / totalMessages) * 100) : 74;
-
-    // Booking sources
-    const bookingsByChannel = await prisma.booking.groupBy({
-      by: ['channel'],
-      where: {
-        property: { orgId },
-        checkIn: { gte: startDate },
-        status: { not: 'CANCELLED' },
-      },
-      _count: { channel: true },
-    });
-
-    // Concierge revenue
-    const conciergeBookings = await prisma.conciergeBooking.findMany({
-      where: {
-        createdAt: { gte: startDate },
-        service: { orgId },
-      },
-      include: { service: true },
-    });
-
-    const conciergeRevenue = conciergeBookings.reduce((sum, b) => sum + b.amount, 0);
-    const conciergeByService: Record<string, { count: number; revenue: number }> = {};
-
-    for (const booking of conciergeBookings) {
-      const name = booking.service.name;
-      if (!conciergeByService[name]) {
-        conciergeByService[name] = { count: 0, revenue: 0 };
-      }
-      conciergeByService[name].count++;
-      conciergeByService[name].revenue += booking.amount;
-    }
-
-    // Monthly revenue trend (last 6 months)
     const monthlyRevenue = [];
-    for (let i = 5; i >= 0; i--) {
-      const month = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
-      const monthLabel = month.toLocaleDateString('en-ZA', { month: 'short' });
-
-      const monthBookings = await prisma.booking.count({
-        where: {
-          property: { orgId },
-          checkIn: { gte: month, lte: monthEnd },
-          status: { not: 'CANCELLED' },
-        },
-      });
-
-      // Approximate revenue
-      const rev = monthBookings * 5 * avgNightlyRate;
-      monthlyRevenue.push({ month: monthLabel, revenue: rev, bookings: monthBookings });
+    for (let i = monthsBack - 1; i >= 0; i--) {
+      const d = new Date();
+      d.setMonth(d.getMonth() - i);
+      const y = d.getFullYear();
+      const m = d.getMonth();
+      const label = d.toLocaleDateString('en-ZA', { month: 'short', year: '2-digit' });
+      const mb = bookings.filter(b => { const bd = new Date(b.checkIn); return bd.getFullYear() === y && bd.getMonth() === m; });
+      monthlyRevenue.push({ month: label, revenue: mb.reduce((s, b) => s + (b.totalPrice ?? 0), 0), bookings: mb.length });
     }
-
-    // Occupancy rate (rough calc)
-    const totalPropertyDays = properties.length * 30;
-    const occupancyRate = totalPropertyDays > 0 ? Math.round((totalNights / totalPropertyDays) * 100) : 82;
-
-    // Property health
-    const maintenanceCount = properties.reduce((sum, p) => sum + p.maintenanceIssues.length, 0);
-    const cleaningIssues = properties.reduce(
-      (sum, p) => sum + p.cleaningTasks.filter((t) => t.status === 'PENDING').length,
-      0
-    );
 
     return NextResponse.json({
-      revenue: {
-        total: totalRevenue || 185000,
-        previous: Math.round((totalRevenue || 185000) * 0.88),
-        changePercent: 12,
+      summary: {
+        totalRevenue,
+        totalBookings: bookings.length,
+        totalNights,
+        avgDailyRate,
+        occupancyRate: Math.round(occupancyRate * 10) / 10,
+        avgStayLength: bookings.length > 0 ? Math.round((totalNights / bookings.length) * 10) / 10 : 0,
       },
-      occupancy: {
-        rate: occupancyRate,
-        label: 'This month',
-      },
-      avgDailyRate: avgNightlyRate,
-      guestRating: 4.87,
-      totalBookings,
-      automationRate,
-      conciergeRevenue: conciergeRevenue || 37150,
-      bookingsByChannel,
-      conciergeByService,
+      channels: Object.entries(channelMap).map(([channel, v]) => ({
+        channel, count: v.count, revenue: v.revenue,
+        pct: bookings.length > 0 ? Math.round((v.count / bookings.length) * 100) : 0,
+      })).sort((a, b) => b.count - a.count),
+      propertyStats: Object.entries(propertyMap).map(([id, v]) => ({ id, ...v })).sort((a, b) => b.revenue - a.revenue),
       monthlyRevenue,
-      propertyHealth: {
-        cleaningIssues,
-        maintenanceIssues: maintenanceCount,
-        guestComplaints: 0,
-      },
-      aiStats: {
-        automationRate,
-        avgResponseTime: '28s',
-        timeSavedDaily: '3.2h',
-        guestRating: 4.87,
-      },
+      properties,
     });
   } catch (error) {
-    console.error('Analytics GET error:', error);
-    return NextResponse.json({ error: 'Failed to fetch analytics' }, { status: 500 });
+    console.error('Analytics error:', error);
+    return NextResponse.json({ error: 'Failed' }, { status: 500 });
   }
 }

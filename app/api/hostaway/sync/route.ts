@@ -140,6 +140,7 @@ export async function GET(req: NextRequest) {
         };
         const channel = channelMap[res.channelName?.toLowerCase()] ?? 'DIRECT';
 
+        const totalPrice = res.totalPrice ?? res.hostPayout ?? res.channelCommissionAmount ?? null;
         await prisma.booking.upsert({
           where: { id: String(res.id) },
           create: {
@@ -153,6 +154,7 @@ export async function GET(req: NextRequest) {
             checkOut: new Date(res.departureDate),
             adults: res.numberOfGuests ?? 1,
             status: mapStatus(res.status),
+            totalPrice: totalPrice ? parseFloat(String(totalPrice)) : null,
           },
           update: {
             guestName: `${res.guestFirstName ?? ''} ${res.guestLastName ?? ''}`.trim() || 'Guest',
@@ -162,6 +164,7 @@ export async function GET(req: NextRequest) {
             checkOut: new Date(res.departureDate),
             adults: res.numberOfGuests ?? 1,
             status: mapStatus(res.status),
+            totalPrice: totalPrice ? parseFloat(String(totalPrice)) : null,
           },
         });
         synced++;
