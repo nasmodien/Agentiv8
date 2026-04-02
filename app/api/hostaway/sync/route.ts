@@ -126,7 +126,6 @@ export async function GET(req: NextRequest) {
 
       let synced = 0;
       const syncedReservationIds: string[] = [];
-      const firstRes = reservations[0];
 
       for (const res of reservations) {
         const propertyId = String(res.listingMapId ?? res.listingId);
@@ -169,13 +168,7 @@ export async function GET(req: NextRequest) {
         syncedReservationIds.push(String(res.id));
       }
 
-      results.reservations = {
-        synced,
-        total: reservations.length,
-        storedPropertyIds: Array.from(storedIds).slice(0, 10),
-        firstReservationListingId: firstRes ? String(firstRes.listingId) : null,
-        firstReservationListingMapId: firstRes ? String(firstRes.listingMapId) : null,
-      };
+      results.reservations = { synced, total: reservations.length };
 
       // ── SYNC MESSAGES (Conversations) ──
       // Only sync messages for active/recent bookings to avoid timeout
@@ -193,7 +186,6 @@ export async function GET(req: NextRequest) {
 
       // Fetch conversations from Hostaway (linked to reservations)
       let messagesSynced = 0;
-      let firstMsgError: string | null = null;
 
       for (const reservationId of activeReservationIds) {
         try {
@@ -202,10 +194,7 @@ export async function GET(req: NextRequest) {
             `${HOSTAWAY_BASE}/conversations?reservationId=${reservationId}&limit=10`,
             { headers }
           );
-          if (!convRes.ok) {
-            if (!firstMsgError) firstMsgError = `conversations HTTP ${convRes.status} for reservation ${reservationId}`;
-            continue;
-          }
+          if (!convRes.ok) continue;
           const convData = await convRes.json();
           const haConversations: Record<string, unknown>[] = convData.result ?? [];
           if (haConversations.length === 0) continue;
@@ -257,12 +246,12 @@ export async function GET(req: NextRequest) {
               messagesSynced++;
             }
           }
-        } catch (e) {
-          if (!firstMsgError) firstMsgError = e instanceof Error ? e.message : String(e);
+        } catch {
+          // skip failed conversation fetches
         }
       }
 
-      results.messages = { synced: messagesSynced, activeBookingsFound: activeReservationIds.length, firstError: firstMsgError };
+      results.messages = { synced: messagesSynced };
     }
 
     return NextResponse.json({ success: true, results });
