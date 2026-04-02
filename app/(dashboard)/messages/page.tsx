@@ -32,7 +32,7 @@ interface DbConversation {
     adults: number;
     channel: string;
   } | null;
-  property: { name: string; unitNumber: string | null; wifiNetwork: string | null; wifiPassword: string | null; parkingSpot: string | null; parkingCode: string | null } | null;
+  property: { id?: string; name: string; unitNumber: string | null; wifiNetwork: string | null; wifiPassword: string | null; parkingSpot: string | null; parkingCode: string | null } | null;
   messages: DbMessage[];
 }
 
@@ -86,6 +86,7 @@ export default function MessagesPage() {
   const [loading, setLoading] = useState(true);
   const [activeChannel, setActiveChannel] = useState<Channel>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedPropertyId, setSelectedPropertyId] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
@@ -109,13 +110,19 @@ export default function MessagesPage() {
 
   const filtered = conversations.filter((c) => {
     const matchChannel = activeChannel === 'all' || c.channel === activeChannel || c.booking?.channel === activeChannel;
+    const matchProperty = selectedPropertyId === 'all' || c.property?.id === selectedPropertyId || (c as unknown as { propertyId?: string }).propertyId === selectedPropertyId;
     const guestName = c.booking?.guestName ?? '';
     const lastMsg = c.messages[c.messages.length - 1]?.content ?? '';
     const matchSearch = !searchQuery ||
       guestName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       lastMsg.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchChannel && matchSearch;
+    return matchChannel && matchProperty && matchSearch;
   });
+
+  // Unique properties from conversations for filter dropdown
+  const conversationProperties = Array.from(
+    new Map(conversations.filter(c => c.property).map(c => [c.property!.id ?? '', c.property!])).entries()
+  ).map(([, p]) => p);
 
   const selected = conversations.find(c => c.id === selectedId) ?? null;
 
@@ -146,12 +153,24 @@ export default function MessagesPage() {
       {/* LEFT: Inbox */}
       <div className="w-[340px] flex-shrink-0 bg-white border-r border-gray-200 flex flex-col">
         <div className="p-4 border-b border-gray-100">
-          <h2 className="text-base font-semibold text-navy mb-3">
-            Unified Inbox
-            {conversations.length > 0 && (
-              <span className="ml-2 text-xs font-normal text-gray-400">{conversations.length} conversations</span>
-            )}
-          </h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-base font-semibold text-navy">
+              Unified Inbox
+              {conversations.length > 0 && (
+                <span className="ml-2 text-xs font-normal text-gray-400">{filtered.length}</span>
+              )}
+            </h2>
+            <select
+              value={selectedPropertyId}
+              onChange={e => { setSelectedPropertyId(e.target.value); setSelectedId(null); }}
+              className="text-xs border border-gray-200 rounded-lg px-2 py-1 text-navy bg-white focus:outline-none max-w-[140px] truncate"
+            >
+              <option value="all">All Properties</option>
+              {conversationProperties.map(p => (
+                <option key={p.id ?? ''} value={p.id ?? ''}>{p.unitNumber ?? p.name}</option>
+              ))}
+            </select>
+          </div>
           <div className="flex gap-1 flex-wrap mb-3">
             {channelTabs.map((ch) => (
               <button
