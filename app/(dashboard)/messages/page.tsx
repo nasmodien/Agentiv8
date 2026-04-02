@@ -83,6 +83,7 @@ const channelTabs: { key: Channel; label: string }[] = [
 
 export default function MessagesPage() {
   const [conversations, setConversations] = useState<DbConversation[]>([]);
+  const [allProperties, setAllProperties] = useState<{ id: string; name: string; unitNumber: string | null }[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeChannel, setActiveChannel] = useState<Channel>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -106,7 +107,12 @@ export default function MessagesPage() {
     }
   }, [selectedId]);
 
-  useEffect(() => { fetchConversations(); }, [fetchConversations]);
+  useEffect(() => {
+    fetchConversations();
+    fetch('/api/properties?orgId=default').then(r => r.json()).then(d => {
+      setAllProperties(d.properties ?? []);
+    }).catch(() => {});
+  }, [fetchConversations]);
 
   const filtered = conversations.filter((c) => {
     const matchChannel = activeChannel === 'all' || c.channel === activeChannel || c.booking?.channel === activeChannel;
@@ -119,10 +125,6 @@ export default function MessagesPage() {
     return matchChannel && matchProperty && matchSearch;
   });
 
-  // Unique properties from conversations for filter dropdown
-  const conversationProperties = Array.from(
-    new Map(conversations.filter(c => c.property).map(c => [c.property!.id ?? '', c.property!])).entries()
-  ).map(([, p]) => p);
 
   const selected = conversations.find(c => c.id === selectedId) ?? null;
 
@@ -166,8 +168,8 @@ export default function MessagesPage() {
               className="text-xs border border-gray-200 rounded-lg px-2 py-1 text-navy bg-white focus:outline-none max-w-[140px] truncate"
             >
               <option value="all">All Properties</option>
-              {conversationProperties.map(p => (
-                <option key={p.id ?? ''} value={p.id ?? ''}>{p.unitNumber ?? p.name}</option>
+              {allProperties.map(p => (
+                <option key={p.id} value={p.id}>{p.unitNumber ?? p.name}</option>
               ))}
             </select>
           </div>

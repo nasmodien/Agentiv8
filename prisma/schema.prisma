@@ -110,6 +110,7 @@ model Booking {
   checkOut     DateTime
   adults       Int            @default(1)
   status       BookingStatus  @default(CONFIRMED)
+  totalPrice   Float?
   property     Property       @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   conversations Conversation[]
   conciergeBookings ConciergeBooking[]
