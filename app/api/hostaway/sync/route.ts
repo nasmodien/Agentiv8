@@ -172,7 +172,7 @@ export async function GET(req: NextRequest) {
       results.reservations = {
         synced,
         total: reservations.length,
-        storedPropertyIds: [...storedIds].slice(0, 10),
+        storedPropertyIds: Array.from(storedIds).slice(0, 10),
         firstReservationListingId: firstRes ? String(firstRes.listingId) : null,
         firstReservationListingMapId: firstRes ? String(firstRes.listingMapId) : null,
       };
