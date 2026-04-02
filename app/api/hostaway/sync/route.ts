@@ -191,61 +191,71 @@ export async function GET(req: NextRequest) {
       });
       const activeReservationIds = activeBookings.map(b => b.id);
 
+      // Fetch conversations from Hostaway (linked to reservations)
       let messagesSynced = 0;
       let firstMsgError: string | null = null;
+
       for (const reservationId of activeReservationIds) {
         try {
-          const msgRes = await fetch(`${HOSTAWAY_BASE}/reservations/${reservationId}/messages?limit=100`, { headers });
-          if (!msgRes.ok) {
-            if (!firstMsgError) firstMsgError = `HTTP ${msgRes.status} for reservation ${reservationId}`;
+          // Get conversation for this reservation
+          const convRes = await fetch(
+            `${HOSTAWAY_BASE}/conversations?reservationId=${reservationId}&limit=10`,
+            { headers }
+          );
+          if (!convRes.ok) {
+            if (!firstMsgError) firstMsgError = `conversations HTTP ${convRes.status} for reservation ${reservationId}`;
             continue;
           }
-          const msgData = await msgRes.json();
-          const messages: Record<string, unknown>[] = msgData.result ?? [];
-          if (messages.length === 0) continue;
+          const convData = await convRes.json();
+          const haConversations: Record<string, unknown>[] = convData.result ?? [];
+          if (haConversations.length === 0) continue;
 
-          // Find the booking to get channel + propertyId
           const booking = await prisma.booking.findUnique({ where: { id: reservationId } });
           if (!booking) continue;
 
-          // Upsert conversation keyed by booking ID
-          const convId = `ha-${reservationId}`;
-          const lastMsg = messages[messages.length - 1];
-          const lastMsgAt = lastMsg?.createdAt ? new Date(lastMsg.createdAt as string) : new Date();
+          for (const haCon of haConversations) {
+            const haConvId = String(haCon.id);
+            const convId = `ha-conv-${haConvId}`;
 
-          await prisma.conversation.upsert({
-            where: { id: convId },
-            create: {
-              id: convId,
-              bookingId: reservationId,
-              propertyId: booking.propertyId,
-              channel: booking.channel,
-              status: 'AI_HANDLED',
-              lastMessageAt: lastMsgAt,
-            },
-            update: {
-              lastMessageAt: lastMsgAt,
-            },
-          });
+            // Fetch messages for this conversation
+            const msgRes = await fetch(`${HOSTAWAY_BASE}/conversations/${haConvId}/messages?limit=100`, { headers });
+            if (!msgRes.ok) continue;
+            const msgData = await msgRes.json();
+            const messages: Record<string, unknown>[] = msgData.result ?? [];
+            if (messages.length === 0) continue;
 
-          // Upsert each message
-          for (const msg of messages) {
-            const msgId = `ha-${reservationId}-${msg.id}`;
-            const role = mapMessageRole(String(msg.type ?? ''));
-            await prisma.message.upsert({
-              where: { id: msgId },
+            const lastMsg = messages[messages.length - 1];
+            const lastMsgAt = lastMsg?.createdAt ? new Date(lastMsg.createdAt as string) : new Date();
+
+            await prisma.conversation.upsert({
+              where: { id: convId },
               create: {
-                id: msgId,
-                conversationId: convId,
-                role,
-                content: String(msg.body ?? ''),
-                createdAt: msg.createdAt ? new Date(msg.createdAt as string) : new Date(),
+                id: convId,
+                bookingId: reservationId,
+                propertyId: booking.propertyId,
+                channel: booking.channel,
+                status: 'AI_HANDLED',
+                lastMessageAt: lastMsgAt,
               },
-              update: {
-                content: String(msg.body ?? ''),
-              },
+              update: { lastMessageAt: lastMsgAt },
             });
-            messagesSynced++;
+
+            for (const msg of messages) {
+              const msgId = `ha-msg-${haConvId}-${msg.id}`;
+              const role = mapMessageRole(String(msg.type ?? ''));
+              await prisma.message.upsert({
+                where: { id: msgId },
+                create: {
+                  id: msgId,
+                  conversationId: convId,
+                  role,
+                  content: String(msg.body ?? msg.message ?? ''),
+                  createdAt: msg.createdAt ? new Date(msg.createdAt as string) : new Date(),
+                },
+                update: { content: String(msg.body ?? msg.message ?? '') },
+              });
+              messagesSynced++;
+            }
           }
         } catch (e) {
           if (!firstMsgError) firstMsgError = e instanceof Error ? e.message : String(e);
