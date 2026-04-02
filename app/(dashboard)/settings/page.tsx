@@ -1,15 +1,33 @@
 'use client';
 
-import { Settings, Key, Bell, Globe, Shield, Webhook } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Settings, Key, Bell, Globe, Shield, Webhook, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 
-const sections = [
+type SaveState = 'idle' | 'saving' | 'saved' | 'error';
+
+interface SectionField {
+  label: string;
+  key: string;
+  placeholder: string;
+  type: string;
+}
+
+interface Section {
+  icon: React.ElementType;
+  title: string;
+  description: string;
+  fields: SectionField[];
+  info?: string;
+}
+
+const sections: Section[] = [
   {
     icon: Globe,
     title: 'Hostaway Integration',
     description: 'Connect your Hostaway account to receive guest messages automatically.',
     fields: [
-      { label: 'Hostaway Account ID', placeholder: 'HA-XXXXXXXX', type: 'text' },
-      { label: 'API Key', placeholder: '••••••••••••••••', type: 'password' },
+      { label: 'Hostaway Account ID', key: 'HOSTAWAY_ACCOUNT_ID', placeholder: '126626', type: 'text' },
+      { label: 'API Key', key: 'HOSTAWAY_API_KEY', placeholder: '••••••••••••••••', type: 'password' },
     ],
   },
   {
@@ -17,9 +35,9 @@ const sections = [
     title: 'AI Configuration',
     description: 'Configure your AI provider for auto-responses.',
     fields: [
-      { label: 'Anthropic API Key', placeholder: 'sk-ant-••••••••', type: 'password' },
-      { label: 'OpenAI API Key (embeddings)', placeholder: 'sk-••••••••', type: 'password' },
-      { label: 'Confidence Threshold', placeholder: '0.75', type: 'number' },
+      { label: 'Anthropic API Key', key: 'ANTHROPIC_API_KEY', placeholder: 'sk-ant-••••••••', type: 'password' },
+      { label: 'OpenAI API Key (embeddings)', key: 'OPENAI_API_KEY', placeholder: 'sk-••••••••', type: 'password' },
+      { label: 'Confidence Threshold (0–1)', key: 'AI_CONFIDENCE_THRESHOLD', placeholder: '0.75', type: 'text' },
     ],
   },
   {
@@ -27,8 +45,8 @@ const sections = [
     title: 'Pinecone Vector DB',
     description: 'Store and search your knowledge base using vector embeddings.',
     fields: [
-      { label: 'Pinecone API Key', placeholder: '••••••••••••••••', type: 'password' },
-      { label: 'Index Name', placeholder: 'agentiv8-kb', type: 'text' },
+      { label: 'Pinecone API Key', key: 'PINECONE_API_KEY', placeholder: '••••••••••••••••', type: 'password' },
+      { label: 'Index Name', key: 'PINECONE_INDEX', placeholder: 'agentiv8-kb', type: 'text' },
     ],
   },
   {
@@ -36,8 +54,8 @@ const sections = [
     title: 'Notifications',
     description: 'Configure alerts for escalations and important events.',
     fields: [
-      { label: 'Escalation Email', placeholder: 'manager@example.com', type: 'email' },
-      { label: 'SMS Number (Twilio)', placeholder: '+27820000000', type: 'text' },
+      { label: 'Escalation Email', key: 'ESCALATION_EMAIL', placeholder: 'manager@example.com', type: 'email' },
+      { label: 'SMS Number (Twilio)', key: 'SMS_NUMBER', placeholder: '+27820000000', type: 'text' },
     ],
   },
   {
@@ -45,22 +63,78 @@ const sections = [
     title: 'Authentication',
     description: 'Manage team access and security settings.',
     fields: [
-      { label: 'Google OAuth Client ID', placeholder: 'XXXX.apps.googleusercontent.com', type: 'text' },
-      { label: 'Google OAuth Secret', placeholder: '••••••••••••••••', type: 'password' },
+      { label: 'Google OAuth Client ID', key: 'GOOGLE_CLIENT_ID', placeholder: 'XXXX.apps.googleusercontent.com', type: 'text' },
+      { label: 'Google OAuth Secret', key: 'GOOGLE_CLIENT_SECRET', placeholder: '••••••••••••••••', type: 'password' },
     ],
   },
   {
     icon: Webhook,
     title: 'Webhook URL',
-    description: 'Use this URL in your Hostaway webhook settings.',
+    description: 'Paste this URL into your Hostaway webhook settings to receive guest messages.',
     fields: [],
-    info: `${typeof window !== 'undefined' ? window.location.origin : 'https://yourapp.vercel.app'}/api/webhooks/hostaway`,
+    info: `${typeof window !== 'undefined' ? window.location.origin : 'https://agentiv8.vercel.app'}/api/webhooks/hostaway`,
   },
 ];
 
 export default function SettingsPage() {
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [saveStates, setSaveStates] = useState<Record<string, SaveState>>({});
+  const [copied, setCopied] = useState(false);
+
+  // Load existing settings on mount
+  useEffect(() => {
+    fetch('/api/settings?orgId=default')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.settings) setValues(data.settings);
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleChange = (key: string, val: string) => {
+    setValues((prev) => ({ ...prev, [key]: val }));
+    if (saveStates[key] === 'saved' || saveStates[key] === 'error') {
+      setSaveStates((prev) => ({ ...prev, [key]: 'idle' }));
+    }
+  };
+
+  const handleSave = async (section: Section) => {
+    const sectionKey = section.title;
+    setSaveStates((prev) => ({ ...prev, [sectionKey]: 'saving' }));
+
+    const settingsToSave: Record<string, string> = {};
+    for (const field of section.fields) {
+      if (values[field.key] !== undefined) {
+        settingsToSave[field.key] = values[field.key];
+      }
+    }
+
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orgId: 'default', settings: settingsToSave }),
+      });
+
+      if (res.ok) {
+        setSaveStates((prev) => ({ ...prev, [sectionKey]: 'saved' }));
+        setTimeout(() => setSaveStates((prev) => ({ ...prev, [sectionKey]: 'idle' })), 3000);
+      } else {
+        setSaveStates((prev) => ({ ...prev, [sectionKey]: 'error' }));
+      }
+    } catch {
+      setSaveStates((prev) => ({ ...prev, [sectionKey]: 'error' }));
+    }
+  };
+
+  const copyWebhook = (url: string) => {
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-3xl mx-auto space-y-6 p-6">
       <div className="flex items-center gap-3">
         <div className="w-9 h-9 rounded-xl bg-navy flex items-center justify-center">
           <Settings size={18} className="text-white" />
@@ -73,6 +147,8 @@ export default function SettingsPage() {
 
       {sections.map((section) => {
         const Icon = section.icon;
+        const state = saveStates[section.title] ?? 'idle';
+
         return (
           <div
             key={section.title}
@@ -88,34 +164,57 @@ export default function SettingsPage() {
                 <p className="text-xs text-gray-500">{section.description}</p>
               </div>
             </div>
+
             <div className="px-5 py-4 space-y-4">
               {section.info && (
-                <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 flex items-center justify-between">
-                  <code className="text-xs text-blue font-mono">{section.info}</code>
+                <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 flex items-center justify-between gap-3">
+                  <code className="text-xs text-blue font-mono break-all">{section.info}</code>
                   <button
-                    onClick={() => navigator.clipboard.writeText(section.info!)}
-                    className="text-xs text-gray-500 hover:text-blue ml-3 flex-shrink-0"
+                    onClick={() => copyWebhook(section.info!)}
+                    className="text-xs font-medium flex-shrink-0 px-3 py-1.5 rounded-lg border border-gray-200 hover:border-blue text-gray-600 hover:text-blue transition-colors"
                   >
-                    Copy
+                    {copied ? 'Copied!' : 'Copy'}
                   </button>
                 </div>
               )}
+
               {section.fields.map((field) => (
-                <div key={field.label}>
+                <div key={field.key}>
                   <label className="block text-xs font-medium text-gray-600 mb-1.5">
                     {field.label}
                   </label>
                   <input
                     type={field.type}
                     placeholder={field.placeholder}
-                    className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-700 outline-none focus:border-blue-light transition-colors"
+                    value={values[field.key] ?? ''}
+                    onChange={(e) => handleChange(field.key, e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-700 outline-none focus:border-blue-light focus:bg-white transition-colors"
+                    autoComplete="off"
                   />
                 </div>
               ))}
+
               {section.fields.length > 0 && (
-                <div className="flex justify-end pt-1">
-                  <button className="bg-blue text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">
-                    Save
+                <div className="flex items-center justify-between pt-1">
+                  {state === 'saved' && (
+                    <span className="flex items-center gap-1.5 text-xs text-green font-medium">
+                      <CheckCircle size={13} /> Saved successfully
+                    </span>
+                  )}
+                  {state === 'error' && (
+                    <span className="flex items-center gap-1.5 text-xs text-red font-medium">
+                      <AlertCircle size={13} /> Failed to save — check your database connection
+                    </span>
+                  )}
+                  {(state === 'idle' || state === 'saving') && <span />}
+
+                  <button
+                    onClick={() => handleSave(section)}
+                    disabled={state === 'saving'}
+                    className="flex items-center gap-2 bg-blue text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {state === 'saving' && <Loader2 size={13} className="animate-spin" />}
+                    {state === 'saving' ? 'Saving...' : 'Save'}
                   </button>
                 </div>
               )}
@@ -124,25 +223,24 @@ export default function SettingsPage() {
         );
       })}
 
+      {/* Env vars reference */}
       <div
         className="bg-white rounded-[10px] border border-gray-200 px-5 py-4"
         style={{ boxShadow: 'var(--shadow)' }}
       >
-        <p className="font-semibold text-navy text-sm mb-3">Environment Variables</p>
+        <p className="font-semibold text-navy text-sm mb-1">Production Environment Variables</p>
         <p className="text-xs text-gray-500 mb-3">
-          For production deployments, configure these values in your hosting provider (Vercel, Railway, etc.):
+          For best security, also set these directly in Vercel → Settings → Environment Variables:
         </p>
         <div className="bg-gray-900 rounded-lg p-4 text-xs font-mono text-green-400 space-y-1 overflow-x-auto">
           {[
             'DATABASE_URL=postgresql://...',
-            'NEXTAUTH_URL=https://yourapp.com',
+            'NEXTAUTH_URL=https://agentiv8.vercel.app',
             'NEXTAUTH_SECRET=your-secret',
             'ANTHROPIC_API_KEY=sk-ant-...',
             'OPENAI_API_KEY=sk-...',
             'PINECONE_API_KEY=...',
             'PINECONE_INDEX=agentiv8-kb',
-            'GOOGLE_CLIENT_ID=...',
-            'GOOGLE_CLIENT_SECRET=...',
             'HOSTAWAY_WEBHOOK_SECRET=...',
           ].map((line) => (
             <div key={line}>{line}</div>
