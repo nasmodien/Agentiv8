@@ -192,10 +192,14 @@ export async function GET(req: NextRequest) {
       const activeReservationIds = activeBookings.map(b => b.id);
 
       let messagesSynced = 0;
+      let firstMsgError: string | null = null;
       for (const reservationId of activeReservationIds) {
         try {
           const msgRes = await fetch(`${HOSTAWAY_BASE}/reservations/${reservationId}/messages?limit=100`, { headers });
-          if (!msgRes.ok) continue;
+          if (!msgRes.ok) {
+            if (!firstMsgError) firstMsgError = `HTTP ${msgRes.status} for reservation ${reservationId}`;
+            continue;
+          }
           const msgData = await msgRes.json();
           const messages: Record<string, unknown>[] = msgData.result ?? [];
           if (messages.length === 0) continue;
@@ -243,12 +247,12 @@ export async function GET(req: NextRequest) {
             });
             messagesSynced++;
           }
-        } catch {
-          // Skip failed reservation message fetches
+        } catch (e) {
+          if (!firstMsgError) firstMsgError = e instanceof Error ? e.message : String(e);
         }
       }
 
-      results.messages = { synced: messagesSynced, activeBookingsFound: activeReservationIds.length };
+      results.messages = { synced: messagesSynced, activeBookingsFound: activeReservationIds.length, firstError: firstMsgError };
     }
 
     return NextResponse.json({ success: true, results });
