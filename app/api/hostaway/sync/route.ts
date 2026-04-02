@@ -180,13 +180,13 @@ export async function GET(req: NextRequest) {
       // ── SYNC MESSAGES (Conversations) ──
       // Only sync messages for active/recent bookings to avoid timeout
       const now = new Date();
-      const cutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      const cutoff = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
       const activeBookings = await prisma.booking.findMany({
         where: {
-          status: { in: ['CONFIRMED', 'CHECKED_IN'] },
           checkOut: { gte: cutoff },
         },
         select: { id: true },
+        orderBy: { checkIn: 'desc' },
         take: 50,
       });
       const activeReservationIds = activeBookings.map(b => b.id);
