@@ -86,8 +86,8 @@ export async function GET(req: NextRequest) {
               .join(', '),
             wifiNetwork: listing.wifiName ?? null,
             wifiPassword: listing.wifiPassword ?? null,
-            checkInTime: listing.checkInTimeStart != null ? String(listing.checkInTimeStart) : '15:00',
-            checkOutTime: listing.checkOutTime != null ? String(listing.checkOutTime) : '11:00',
+            checkInTime: listing.checkInTimeStart != null ? `${listing.checkInTimeStart}:00` : '15:00',
+            checkOutTime: listing.checkOutTime != null ? `${listing.checkOutTime}:00` : '11:00',
           },
           update: {
             name: listing.name ?? `Property ${listing.id}`,
@@ -97,8 +97,8 @@ export async function GET(req: NextRequest) {
               .join(', '),
             wifiNetwork: listing.wifiName ?? null,
             wifiPassword: listing.wifiPassword ?? null,
-            checkInTime: listing.checkInTimeStart != null ? String(listing.checkInTimeStart) : '15:00',
-            checkOutTime: listing.checkOutTime != null ? String(listing.checkOutTime) : '11:00',
+            checkInTime: listing.checkInTimeStart != null ? `${listing.checkInTimeStart}:00` : '15:00',
+            checkOutTime: listing.checkOutTime != null ? `${listing.checkOutTime}:00` : '11:00',
           },
         });
         synced++;
