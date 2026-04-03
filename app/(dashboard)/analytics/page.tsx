@@ -154,8 +154,13 @@ export default function AnalyticsPage() {
       const params = new URLSearchParams({ orgId: 'default', period: p });
       propIds.forEach(id => params.append('propertyId', id));
       const res = await fetch(`/api/analytics?${params}`);
+      if (!res.ok) throw new Error(`API error ${res.status}`);
       const d = await res.json();
+      if (d.error) throw new Error(d.error);
       setData(d);
+    } catch (err) {
+      console.error('Analytics fetch error:', err);
+      setData(null);
     } finally {
       setLoading(false);
     }
@@ -200,6 +205,16 @@ export default function AnalyticsPage() {
       {loading && (
         <div className="flex items-center justify-center py-16 text-gray-400">
           <RefreshCw size={20} className="animate-spin mr-2" /> Loading analytics...
+        </div>
+      )}
+
+      {!loading && !data && (
+        <div className="bg-amber-50 border border-amber-200 rounded-[10px] p-6 text-center">
+          <p className="text-amber-800 font-medium mb-2">Database migration required</p>
+          <p className="text-amber-700 text-sm">Run this SQL in your Neon dashboard, then reload:</p>
+          <code className="block mt-3 bg-white border border-amber-200 rounded px-4 py-2 text-sm font-mono text-gray-800">
+            ALTER TABLE &quot;Booking&quot; ADD COLUMN IF NOT EXISTS &quot;totalPrice&quot; DOUBLE PRECISION;
+          </code>
         </div>
       )}
 
