@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Search, Clock, Send, CheckCircle, AlertTriangle, ArrowUp,
-  Wifi, Car, BookOpen, Wine, Utensils, Plane, RefreshCw,
+  Wifi, Car, BookOpen, Wine, Utensils, Plane, RefreshCw, ArrowLeft, Info,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -31,8 +31,22 @@ interface DbConversation {
     checkOut: string;
     adults: number;
     channel: string;
+    status?: string;
+    totalPrice?: number | null;
+    guestTotal?: number | null;
   } | null;
-  property: { id?: string; name: string; unitNumber: string | null; wifiNetwork: string | null; wifiPassword: string | null; parkingSpot: string | null; parkingCode: string | null } | null;
+  property: {
+    id?: string;
+    name: string;
+    unitNumber: string | null;
+    address?: string | null;
+    checkInTime?: string | null;
+    checkOutTime?: string | null;
+    wifiNetwork: string | null;
+    wifiPassword: string | null;
+    parkingSpot: string | null;
+    parkingCode: string | null;
+  } | null;
   messages: DbMessage[];
 }
 
@@ -90,6 +104,9 @@ export default function MessagesPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
+  // Mobile: 'list' | 'chat' | 'info'
+  const [mobilePanel, setMobilePanel] = useState<'list' | 'chat' | 'info'>('list');
+  const [showMobileInfo, setShowMobileInfo] = useState(false);
   const [activeChannel, setActiveChannel] = useState<Channel>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedPropertyId, setSelectedPropertyId] = useState<string>('all');
@@ -173,9 +190,12 @@ export default function MessagesPage() {
   );
 
   return (
-    <div className="flex h-[calc(100vh-var(--topbar-h))] gap-4">
+    <div className="flex h-[calc(100vh-var(--topbar-h)-var(--mobile-nav-h))] md:h-[calc(100vh-var(--topbar-h))] gap-0 md:gap-4">
       {/* LEFT: Inbox */}
-      <div className="w-[340px] flex-shrink-0 bg-white border-r border-gray-200 flex flex-col">
+      <div className={cn(
+        "flex-shrink-0 bg-white border-r border-gray-200 flex flex-col w-full md:w-[340px]",
+        mobilePanel !== 'list' && "hidden md:flex"
+      )}>
         <div className="p-4 border-b border-gray-100">
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-sm font-semibold text-navy">
@@ -246,7 +266,7 @@ export default function MessagesPage() {
             return (
               <button
                 key={conv.id}
-                onClick={() => setSelectedId(conv.id)}
+                onClick={() => { setSelectedId(conv.id); setMobilePanel('chat'); }}
                 className={cn(
                   'w-full text-left px-4 py-3.5 border-b border-gray-50 transition-all flex items-start gap-3',
                   selectedId === conv.id
@@ -282,16 +302,26 @@ export default function MessagesPage() {
       </div>
 
       {/* CENTER: Chat */}
-      <div className="flex-1 flex flex-col bg-white border-r border-gray-200 min-w-0">
+      <div className={cn(
+        "flex-1 flex flex-col bg-white border-r border-gray-200 min-w-0",
+        mobilePanel === 'list' && "hidden md:flex"
+      )}>
         {!selected ? (
           <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
             Select a conversation
           </div>
         ) : (
           <>
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100 flex-shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-navy flex items-center justify-center">
+            <div className="flex items-center justify-between px-3 md:px-5 py-3.5 border-b border-gray-100 flex-shrink-0">
+              <div className="flex items-center gap-2 md:gap-3">
+                {/* Back button — mobile only */}
+                <button
+                  onClick={() => setMobilePanel('list')}
+                  className="md:hidden p-1 -ml-1 rounded-lg hover:bg-gray-100 text-gray-500"
+                >
+                  <ArrowLeft size={18} />
+                </button>
+                <div className="w-9 h-9 rounded-full bg-navy flex items-center justify-center flex-shrink-0">
                   <span className="text-white text-xs font-semibold">{initials(selected.booking?.guestName ?? 'G')}</span>
                 </div>
                 <div>
@@ -301,11 +331,18 @@ export default function MessagesPage() {
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <button className="px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors">
+              <div className="flex items-center gap-1.5 md:gap-2">
+                {/* Info button — mobile only */}
+                <button
+                  onClick={() => setMobilePanel('info')}
+                  className="md:hidden w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500"
+                >
+                  <Info size={17} />
+                </button>
+                <button className="hidden md:block px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors">
                   Mark Resolved
                 </button>
-                <button className="px-3 py-1.5 text-xs font-medium bg-navy text-white rounded-lg hover:opacity-90 transition-colors">
+                <button className="hidden md:block px-3 py-1.5 text-xs font-medium bg-navy text-white rounded-lg hover:opacity-90 transition-colors">
                   Escalate
                 </button>
               </div>
@@ -369,9 +406,20 @@ export default function MessagesPage() {
       </div>
 
       {/* RIGHT: Guest Details */}
-      <div className="w-[280px] flex-shrink-0 bg-white overflow-y-auto">
+      <div className={cn(
+        "flex-shrink-0 bg-white overflow-y-auto w-full md:w-[300px]",
+        mobilePanel !== 'info' && "hidden md:block"
+      )}>
         {selected && (
           <div className="p-5">
+            {/* Back to chat — mobile only */}
+            <button
+              onClick={() => setMobilePanel('chat')}
+              className="md:hidden flex items-center gap-1.5 text-sm text-blue mb-4 -ml-1"
+            >
+              <ArrowLeft size={16} /> Back to chat
+            </button>
+            {/* 1. Guest avatar + name + property unit */}
             <div className="text-center mb-5 pb-5 border-b border-gray-100">
               <div className="w-14 h-14 rounded-full bg-navy flex items-center justify-center mx-auto mb-3">
                 <span className="text-white text-lg font-semibold">{initials(selected.booking?.guestName ?? 'G')}</span>
@@ -386,37 +434,101 @@ export default function MessagesPage() {
               )}
             </div>
 
-            {selected.booking && (
-              <div className="space-y-3 mb-5 pb-5 border-b border-gray-100">
-                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Reservation</h3>
-                <div className="space-y-2.5">
-                  <div className="flex justify-between">
-                    <span className="text-xs text-gray-500">Check-in</span>
-                    <span className="text-xs font-medium text-navy">
-                      {new Date(selected.booking.checkIn).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' })}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-xs text-gray-500">Check-out</span>
-                    <span className="text-xs font-medium text-navy">
-                      {new Date(selected.booking.checkOut).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' })}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-xs text-gray-500">Guests</span>
-                    <span className="text-xs font-medium text-navy">{selected.booking.adults} adults</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-xs text-gray-500">Channel</span>
-                    <span className="text-xs font-medium text-navy">{selected.booking.channel}</span>
+            {/* 3. Reservation section */}
+            {selected.booking && (() => {
+              const bk = selected.booking;
+              const pr = selected.property;
+              const checkIn = new Date(bk.checkIn);
+              const checkOut = new Date(bk.checkOut);
+              const nightCount = Math.max(Math.round((checkOut.getTime() - checkIn.getTime()) / 86400000), 1);
+              const statusBadgeMap: Record<string, { label: string; color: string }> = {
+                CONFIRMED:   { label: 'Confirmed',   color: 'bg-green-100 text-green-700' },
+                CHECKED_IN:  { label: 'Checked In',  color: 'bg-blue-100 text-blue-700' },
+                CHECKED_OUT: { label: 'Checked Out', color: 'bg-gray-100 text-gray-600' },
+                CANCELLED:   { label: 'Cancelled',   color: 'bg-red-100 text-red-600' },
+              };
+              const badge = bk.status ? (statusBadgeMap[bk.status] ?? { label: bk.status, color: 'bg-gray-100 text-gray-600' }) : null;
+              const channelColor = CHANNEL_COLORS[bk.channel] ?? '#9ca3af';
+              const zarFmt = (n: number) => `ZAR ${Math.round(n).toLocaleString('en-ZA')}`;
+              return (
+                <div className="mb-5 pb-5 border-b border-gray-100">
+                  <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Reservation</h3>
+                  <div className="bg-gray-50 rounded-xl p-3 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      {badge && (
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${badge.color}`}>{badge.label}</span>
+                      )}
+                      {(bk.guestTotal ?? 0) > 0 && (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700">Paid</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: channelColor }} />
+                      <span className="text-xs text-gray-600">{bk.channel.replace('_', '.')}</span>
+                    </div>
+                    {pr && (
+                      <div>
+                        <p className="text-xs font-medium text-navy">{pr.unitNumber ?? pr.name}</p>
+                        {pr.address && <p className="text-[10px] text-gray-400">{pr.address}</p>}
+                      </div>
+                    )}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <p className="text-[10px] text-gray-400">Check-in</p>
+                        <p className="text-xs font-medium text-navy">{checkIn.toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: '2-digit' })}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-gray-400">Check-out</p>
+                        <p className="text-xs font-medium text-navy">{checkOut.toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: '2-digit' })}</p>
+                      </div>
+                    </div>
+                    {pr && (pr.checkInTime || pr.checkOutTime) && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <p className="text-[10px] text-gray-400">Check-in time</p>
+                          <p className="text-xs font-medium text-navy">{pr.checkInTime ?? '—'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-gray-400">Check-out time</p>
+                          <p className="text-xs font-medium text-navy">{pr.checkOutTime ?? '—'}</p>
+                        </div>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <p className="text-[10px] text-gray-400">Nights</p>
+                        <p className="text-xs font-medium text-navy">{nightCount}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-gray-400">Guests</p>
+                        <p className="text-xs font-medium text-navy">{bk.adults} adults</p>
+                      </div>
+                    </div>
+                    {((bk.guestTotal ?? 0) > 0 || (bk.totalPrice ?? 0) > 0) && (
+                      <div className="pt-1.5 border-t border-gray-200 space-y-1">
+                        {(bk.guestTotal ?? 0) > 0 && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-[10px] text-gray-500">Total</span>
+                            <span className="text-xs font-semibold text-navy">{zarFmt(bk.guestTotal!)}</span>
+                          </div>
+                        )}
+                        {(bk.totalPrice ?? 0) > 0 && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-[10px] text-gray-500">Payout</span>
+                            <span className="text-xs font-medium text-green-700">{zarFmt(bk.totalPrice!)}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
+            {/* 4. Property Info section */}
             {selected.property && (
               <div className="space-y-3 mb-5 pb-5 border-b border-gray-100">
-                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Property</h3>
+                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Property Info</h3>
                 <div className="space-y-2.5">
                   {selected.property.wifiNetwork && (
                     <div className="flex items-center gap-2.5">
