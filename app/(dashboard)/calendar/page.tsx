@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useLayoutEffect } from 'react';
 import { ChevronLeft, ChevronRight, CalendarDays, RefreshCw } from 'lucide-react';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -63,11 +63,16 @@ export default function CalendarPage() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const [view, setView] = useState<ViewMode>('multi');
+  const [view, setView] = useState<ViewMode>('monthly');
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPropertyId, setSelectedPropertyId] = useState<string>('all');
+  // On desktop, default to multi view
+  useLayoutEffect(() => {
+    if (window.innerWidth >= 768) setView('multi');
+  }, []);
+
   const [multiStart, setMultiStart] = useState(today);
   const [monthDate, setMonthDate] = useState({ year: today.getFullYear(), month: today.getMonth() });
   const [rates, setRates] = useState<Record<string, Rate[]>>({});
@@ -289,7 +294,10 @@ export default function CalendarPage() {
 
         <div className="grid grid-cols-7 border-b border-gray-100">
           {DAYS_SHORT.map(d => (
-            <div key={d} className="py-2 text-center text-xs font-semibold text-gray-400 uppercase tracking-wide">{d}</div>
+            <div key={d} className="py-2 text-center text-xs font-semibold text-gray-400 uppercase tracking-wide">
+              <span className="hidden sm:inline">{d}</span>
+              <span className="sm:hidden">{d[0]}</span>
+            </div>
           ))}
         </div>
 
@@ -301,7 +309,7 @@ export default function CalendarPage() {
             const rate = propId ? getRateForDate(propId, dateStr) : null;
 
             return (
-              <div key={i} className={`min-h-[90px] border-r border-b border-gray-50 p-1.5 last:border-r-0 ${isToday ? 'bg-blue/5' : ''}`}>
+              <div key={i} className={`min-h-[60px] md:min-h-[90px] border-r border-b border-gray-50 p-1 md:p-1.5 last:border-r-0 ${isToday ? 'bg-blue/5' : ''}`}>
                 {day && (
                   <>
                     <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-semibold mb-1 ${isToday ? 'bg-blue text-white' : 'text-gray-600'}`}>
@@ -324,13 +332,14 @@ export default function CalendarPage() {
                             }}
                             title={`${b.guestName} · ${b.adults} guests`}
                           >
-                            {isCI ? `▶ ${b.guestName.split(' ')[0]} · ${b.adults}g` : (isCO ? '◀ Check-out' : '— Occupied')}
+                            <span className="hidden sm:inline">{isCI ? `▶ ${b.guestName.split(' ')[0]} · ${b.adults}g` : (isCO ? '◀ Out' : '— In')}</span>
+                    <span className="sm:hidden">{isCI ? b.guestName.split(' ')[0][0] : (isCO ? '◀' : '•')}</span>
                           </div>
                         );
                       })}
                     </div>
                     {rate?.price && (
-                      <div className="text-[10px] text-gray-500 font-medium">{formatZAR(rate.price)}</div>
+                      <div className="hidden sm:block text-[10px] text-gray-500 font-medium">{formatZAR(rate.price)}</div>
                     )}
                     {rate && !rate.isAvailable && cellBookings.length === 0 && (
                       <div className="text-[10px] text-red-400">Blocked</div>
@@ -352,7 +361,7 @@ export default function CalendarPage() {
   );
 
   return (
-    <div className="space-y-4 p-6">
+    <div className="space-y-4 p-4 md:p-6">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
@@ -360,14 +369,14 @@ export default function CalendarPage() {
             <CalendarDays size={18} className="text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-navy">Booking Calendar</h1>
-            <p className="text-sm text-gray-500">
-              {bookings.filter(b => b.status !== 'CANCELLED').length} active bookings · {properties.length} properties
+            <h1 className="text-xl font-bold text-navy">Calendar</h1>
+            <p className="text-xs text-gray-500">
+              {bookings.filter(b => b.status !== 'CANCELLED').length} active · {properties.length} properties
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 md:gap-3">
           {/* View toggle */}
           <div className="flex items-center bg-gray-100 rounded-lg p-1 gap-1">
             <button
