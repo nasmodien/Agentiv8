@@ -140,32 +140,30 @@ export async function GET(req: NextRequest) {
         };
         const channel = channelMap[res.channelName?.toLowerCase()] ?? 'DIRECT';
 
-        const totalPrice = res.totalPrice ?? res.hostPayout ?? res.channelCommissionAmount ?? null;
+        const fin = (v: unknown) => v != null ? parseFloat(String(v)) : null;
+        const financials = {
+          totalPrice:        fin(res.hostPayout ?? res.totalPrice),
+          guestTotal:        fin(res.totalAmount ?? res.guestTotalAmount ?? res.channelAmount),
+          cleaningFee:       fin(res.cleaningFee),
+          channelCommission: fin(res.channelCommission ?? res.channelCommissionAmount),
+          taxAmount:         fin(res.taxAmount ?? res.totalTaxes ?? res.vatAmount),
+          hostServiceFee:    fin(res.hostServiceFee ?? res.airbnbHostFee),
+        };
+        const bookingData = {
+          guestName: `${res.guestFirstName ?? ''} ${res.guestLastName ?? ''}`.trim() || 'Guest',
+          guestEmail: res.guestEmail ?? null,
+          guestPhone: res.phone ?? null,
+          channel,
+          checkIn: new Date(res.arrivalDate),
+          checkOut: new Date(res.departureDate),
+          adults: res.numberOfGuests ?? 1,
+          status: mapStatus(res.status),
+          ...financials,
+        };
         await prisma.booking.upsert({
           where: { id: String(res.id) },
-          create: {
-            id: String(res.id),
-            propertyId,
-            guestName: `${res.guestFirstName ?? ''} ${res.guestLastName ?? ''}`.trim() || 'Guest',
-            guestEmail: res.guestEmail ?? null,
-            guestPhone: res.phone ?? null,
-            channel,
-            checkIn: new Date(res.arrivalDate),
-            checkOut: new Date(res.departureDate),
-            adults: res.numberOfGuests ?? 1,
-            status: mapStatus(res.status),
-            totalPrice: totalPrice ? parseFloat(String(totalPrice)) : null,
-          },
-          update: {
-            guestName: `${res.guestFirstName ?? ''} ${res.guestLastName ?? ''}`.trim() || 'Guest',
-            guestEmail: res.guestEmail ?? null,
-            channel,
-            checkIn: new Date(res.arrivalDate),
-            checkOut: new Date(res.departureDate),
-            adults: res.numberOfGuests ?? 1,
-            status: mapStatus(res.status),
-            totalPrice: totalPrice ? parseFloat(String(totalPrice)) : null,
-          },
+          create: { id: String(res.id), propertyId, ...bookingData },
+          update: bookingData,
         });
         synced++;
         syncedReservationIds.push(String(res.id));
