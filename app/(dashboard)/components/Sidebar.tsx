@@ -13,6 +13,7 @@ import {
   BookOpen,
   Settings,
   AlertTriangle,
+  RefreshCw,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -25,6 +26,7 @@ const navItems = [
   { label: 'Concierge', href: '/concierge', icon: Coffee },
   { label: 'Analytics', href: '/analytics', icon: BarChart3 },
   { label: 'Knowledge Base', href: '/knowledge', icon: BookOpen, dot: true },
+  { label: 'Sync', href: '/sync', icon: RefreshCw },
   { label: 'Settings', href: '/settings', icon: Settings },
 ];
 

@@ -180,101 +180,120 @@ export async function GET(req: NextRequest) {
 
       results.reservations = { synced, total: reservations.length };
 
-      // ── SYNC CONVERSATIONS & MESSAGES ──
-      // Fetch ALL conversations directly from Hostaway with pagination (not per-reservation)
-      // This avoids the 50-booking limit and gets every guest conversation
-      let messagesSynced = 0;
-      let convsSynced = 0;
-      const PAGE_SIZE = 100;
-      const MAX_PAGES = 10; // up to 1000 conversations
+      // Conversations sync is now a separate type to avoid timeouts
+      // Run it separately when type=conversations or type=all (small batch only for 'all')
+      if (type === 'all') {
+        results.messages = { note: 'Use type=conversations to sync messages separately' };
+      }
+    }
 
-      for (let page = 0; page < MAX_PAGES; page++) {
-        let haConversations: Record<string, unknown>[] = [];
+    // ── SYNC CONVERSATIONS (batched, smart) ──
+    if (type === 'conversations') {
+      const offset = parseInt(searchParams.get('offset') ?? '0', 10);
+      const BATCH = 30; // safe for Vercel 60s limit (~2 API calls each = 60 calls)
+
+      // Fetch one page of conversations from Hostaway
+      const convListRes = await fetch(
+        `${HOSTAWAY_BASE}/conversations?limit=${BATCH}&offset=${offset}&sortOrder=lastMessage`,
+        { headers }
+      );
+      if (!convListRes.ok) throw new Error(`Conversations fetch failed: ${convListRes.status}`);
+      const convListData = await convListRes.json();
+      const haConversations: Record<string, unknown>[] = convListData.result ?? [];
+
+      let convsSynced = 0;
+      let messagesInBatch = 0;
+      let skipped = 0;
+
+      // Get existing conversations to skip unchanged ones
+      const existingConvIds = haConversations.map(c => `ha-conv-${c.id}`);
+      const existingConvs = await prisma.conversation.findMany({
+        where: { id: { in: existingConvIds } },
+        select: { id: true, lastMessageAt: true },
+      });
+      const existingMap = new Map(existingConvs.map(c => [c.id, c.lastMessageAt]));
+
+      for (const haCon of haConversations) {
         try {
-          const convListRes = await fetch(
-            `${HOSTAWAY_BASE}/conversations?limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}&sortOrder=lastMessage`,
+          const haConvId = String(haCon.id);
+          const convId = `ha-conv-${haConvId}`;
+          const reservationId = haCon.reservationId != null ? String(haCon.reservationId) : null;
+
+          // Smart skip: if lastMessageAt hasn't changed, skip fetching messages
+          const haLastMsg = haCon.lastMessageAt ? new Date(haCon.lastMessageAt as string) : null;
+          const dbLastMsg = existingMap.get(convId);
+          if (dbLastMsg && haLastMsg && Math.abs(dbLastMsg.getTime() - haLastMsg.getTime()) < 1000) {
+            skipped++;
+            continue;
+          }
+
+          const booking = reservationId
+            ? await prisma.booking.findUnique({ where: { id: reservationId } })
+            : null;
+
+          const propertyId = booking?.propertyId
+            ?? (haCon.listingMapId != null ? String(haCon.listingMapId) : null)
+            ?? (haCon.listingId != null ? String(haCon.listingId) : null);
+
+          if (!propertyId) { skipped++; continue; }
+
+          // Fetch messages for this conversation
+          const msgRes = await fetch(
+            `${HOSTAWAY_BASE}/conversations/${haConvId}/messages?limit=100`,
             { headers }
           );
-          if (!convListRes.ok) break;
-          const convListData = await convListRes.json();
-          haConversations = convListData.result ?? [];
-          if (haConversations.length === 0) break;
-        } catch { break; }
+          if (!msgRes.ok) continue;
+          const msgData = await msgRes.json();
+          const messages: Record<string, unknown>[] = msgData.result ?? [];
 
-        for (const haCon of haConversations) {
-          try {
-            const haConvId = String(haCon.id);
-            const convId = `ha-conv-${haConvId}`;
-            const reservationId = haCon.reservationId != null ? String(haCon.reservationId) : null;
+          const lastMsg = messages.length > 0 ? messages[messages.length - 1] : null;
+          const lastMsgAt = lastMsg?.createdAt
+            ? new Date(lastMsg.createdAt as string)
+            : haLastMsg ?? new Date();
 
-            // Find the booking this conversation belongs to
-            const booking = reservationId
-              ? await prisma.booking.findUnique({ where: { id: reservationId } })
-              : null;
+          await prisma.conversation.upsert({
+            where: { id: convId },
+            create: {
+              id: convId,
+              bookingId: booking?.id ?? null,
+              propertyId,
+              channel: booking?.channel ?? 'DIRECT',
+              status: 'AI_HANDLED',
+              lastMessageAt: lastMsgAt,
+            },
+            update: { lastMessageAt: lastMsgAt },
+          });
+          convsSynced++;
 
-            if (!booking && !reservationId) continue; // skip orphan conversations
-
-            // Fetch messages for this conversation
-            const msgRes = await fetch(
-              `${HOSTAWAY_BASE}/conversations/${haConvId}/messages?limit=100`,
-              { headers }
-            );
-            if (!msgRes.ok) continue;
-            const msgData = await msgRes.json();
-            const messages: Record<string, unknown>[] = msgData.result ?? [];
-
-            const lastMsg = messages[messages.length - 1];
-            const lastMsgAt = lastMsg?.createdAt
-              ? new Date(lastMsg.createdAt as string)
-              : haCon.lastMessageAt ? new Date(haCon.lastMessageAt as string) : new Date();
-
-            // Only save if we have a linked booking, otherwise use propertyId from conversation
-            const propertyId = booking?.propertyId
-              ?? (haCon.listingMapId != null ? String(haCon.listingMapId) : null)
-              ?? (haCon.listingId != null ? String(haCon.listingId) : null);
-
-            if (!propertyId) continue;
-
-            await prisma.conversation.upsert({
-              where: { id: convId },
+          for (const msg of messages) {
+            const msgId = `ha-msg-${haConvId}-${msg.id}`;
+            await prisma.message.upsert({
+              where: { id: msgId },
               create: {
-                id: convId,
-                bookingId: booking?.id ?? null,
-                propertyId,
-                channel: booking?.channel ?? 'DIRECT',
-                status: 'AI_HANDLED',
-                lastMessageAt: lastMsgAt,
+                id: msgId,
+                conversationId: convId,
+                role: mapMessageRole(String(msg.type ?? '')),
+                content: String(msg.body ?? msg.message ?? ''),
+                createdAt: msg.createdAt ? new Date(msg.createdAt as string) : new Date(),
               },
-              update: { lastMessageAt: lastMsgAt },
+              update: { content: String(msg.body ?? msg.message ?? '') },
             });
-            convsSynced++;
-
-            for (const msg of messages) {
-              const msgId = `ha-msg-${haConvId}-${msg.id}`;
-              const role = mapMessageRole(String(msg.type ?? ''));
-              await prisma.message.upsert({
-                where: { id: msgId },
-                create: {
-                  id: msgId,
-                  conversationId: convId,
-                  role,
-                  content: String(msg.body ?? msg.message ?? ''),
-                  createdAt: msg.createdAt ? new Date(msg.createdAt as string) : new Date(),
-                },
-                update: { content: String(msg.body ?? msg.message ?? '') },
-              });
-              messagesSynced++;
-            }
-          } catch {
-            // skip individual conversation errors
+            messagesInBatch++;
           }
-        }
-
-        // If we got fewer than PAGE_SIZE, no more pages
-        if (haConversations.length < PAGE_SIZE) break;
+        } catch { skipped++; }
       }
 
-      results.messages = { conversations: convsSynced, messages: messagesSynced };
+      const totalInHostaway = convListData.count ?? convListData.total ?? null;
+      results.conversations = {
+        synced: convsSynced,
+        messages: messagesInBatch,
+        skipped,
+        offset,
+        batchSize: haConversations.length,
+        hasMore: haConversations.length === BATCH,
+        nextOffset: offset + BATCH,
+        total: totalInHostaway,
+      };
     }
 
     return NextResponse.json({ success: true, results });
