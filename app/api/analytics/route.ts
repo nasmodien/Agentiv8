@@ -6,18 +6,27 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const orgId = searchParams.get('orgId') ?? 'default';
     const propertyIds = searchParams.getAll('propertyId');
-    const period = searchParams.get('period') ?? '12';
 
-    const monthsBack = parseInt(period, 10);
-    const periodStart = new Date();
-    periodStart.setMonth(periodStart.getMonth() - monthsBack);
-    periodStart.setDate(1);
+    // Support both startDate/endDate and legacy period param
+    let periodStart: Date, periodEnd: Date;
+    const startDateParam = searchParams.get('startDate');
+    const endDateParam = searchParams.get('endDate');
+    if (startDateParam && endDateParam) {
+      periodStart = new Date(startDateParam);
+      periodEnd = new Date(endDateParam);
+      periodEnd.setHours(23, 59, 59, 999);
+    } else {
+      const monthsBack = parseInt(searchParams.get('period') ?? '3', 10);
+      periodStart = new Date();
+      periodStart.setMonth(periodStart.getMonth() - monthsBack);
+      periodEnd = new Date();
+    }
     periodStart.setHours(0, 0, 0, 0);
 
     const bookingWhere = {
       property: { orgId },
       status: { not: 'CANCELLED' as const },
-      checkIn: { gte: periodStart },
+      checkIn: { gte: periodStart, lte: periodEnd },
       ...(propertyIds.length > 0 ? { propertyId: { in: propertyIds } } : {}),
     };
 
@@ -40,8 +49,7 @@ export async function GET(req: NextRequest) {
     }, 0);
     const avgDailyRate = totalNights > 0 ? totalRevenue / totalNights : 0;
 
-    const today = new Date();
-    const daysInPeriod = Math.round((today.getTime() - periodStart.getTime()) / 86400000);
+    const daysInPeriod = Math.round((periodEnd.getTime() - periodStart.getTime()) / 86400000);
     const propCount = propertyIds.length > 0 ? propertyIds.length : properties.length;
     const availableNights = daysInPeriod * propCount;
     const occupancyRate = availableNights > 0 ? Math.min((totalNights / availableNights) * 100, 100) : 0;
@@ -63,14 +71,14 @@ export async function GET(req: NextRequest) {
     }
 
     const monthlyRevenue = [];
-    for (let i = monthsBack - 1; i >= 0; i--) {
-      const d = new Date();
-      d.setMonth(d.getMonth() - i);
-      const y = d.getFullYear();
-      const m = d.getMonth();
-      const label = d.toLocaleDateString('en-ZA', { month: 'short', year: '2-digit' });
+    const cur = new Date(periodStart.getFullYear(), periodStart.getMonth(), 1);
+    while (cur <= periodEnd) {
+      const y = cur.getFullYear();
+      const m = cur.getMonth();
+      const label = cur.toLocaleDateString('en-ZA', { month: 'short', year: '2-digit' });
       const mb = bookings.filter(b => { const bd = new Date(b.checkIn); return bd.getFullYear() === y && bd.getMonth() === m; });
       monthlyRevenue.push({ month: label, revenue: mb.reduce((s, b) => s + (b.totalPrice ?? 0), 0), bookings: mb.length });
+      cur.setMonth(cur.getMonth() + 1);
     }
 
     return NextResponse.json({
