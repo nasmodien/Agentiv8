@@ -193,12 +193,12 @@ export default function AnalyticsPage() {
   ];
 
   return (
-    <div className="max-w-6xl mx-auto space-y-5 p-6">
+    <div className="max-w-6xl mx-auto space-y-5 p-4 md:p-6">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-xl font-bold text-navy">Analytics Dashboard</h1>
-          <p className="text-sm text-gray-500">{s ? `${s.totalBookings} bookings` : '...'} · {startDate} → {endDate}</p>
+          <h1 className="text-xl font-bold text-navy">Analytics</h1>
+          <p className="text-xs text-gray-500">{s ? `${s.totalBookings} bookings` : '...'} · {startDate} → {endDate}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {PRESETS.map(p => {
@@ -211,15 +211,14 @@ export default function AnalyticsPage() {
               </button>
             );
           })}
-          <div className="flex items-center gap-1.5 border border-gray-200 rounded-lg px-3 py-1.5 bg-white">
-            <span className="text-xs text-gray-400">From</span>
-            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="text-xs text-navy bg-transparent focus:outline-none" />
-            <span className="text-xs text-gray-400">To</span>
-            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="text-xs text-navy bg-transparent focus:outline-none" />
+          <div className="flex items-center gap-1.5 border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-xs overflow-x-auto">
+            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="text-xs text-navy bg-transparent focus:outline-none w-[110px]" />
+            <span className="text-gray-300">→</span>
+            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="text-xs text-navy bg-transparent focus:outline-none w-[110px]" />
           </div>
           {data && <PropertyFilter properties={data.properties} selected={selectedProperties} onChange={setSelectedProperties} />}
           <button className="flex items-center gap-2 px-3 py-1.5 bg-navy text-white text-sm font-medium rounded-lg hover:opacity-90">
-            <Download size={14} /> Export
+            <Download size={14} /> <span className="hidden sm:inline">Export</span>
           </button>
         </div>
       </div>
@@ -326,7 +325,7 @@ export default function AnalyticsPage() {
           )}
 
           {/* Charts row */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="bg-white rounded-[10px] p-5" style={{ boxShadow: 'var(--shadow)' }}>
               <div className="flex items-center justify-between mb-1">
                 <h2 className="text-sm font-semibold text-navy">{s.hasFinancials ? (showGross ? 'Gross Revenue by Month' : 'Net Revenue by Month') : 'Bookings by Month'}</h2>

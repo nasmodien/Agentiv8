@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Search, Clock, Send, CheckCircle, AlertTriangle, ArrowUp,
-  Wifi, Car, BookOpen, Wine, Utensils, Plane, RefreshCw,
+  Wifi, Car, BookOpen, Wine, Utensils, Plane, RefreshCw, ArrowLeft, Info,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -108,6 +108,9 @@ export default function MessagesPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
+  // Mobile: 'list' | 'chat' | 'info'
+  const [mobilePanel, setMobilePanel] = useState<'list' | 'chat' | 'info'>('list');
+  const [showMobileInfo, setShowMobileInfo] = useState(false);
   const [activeChannel, setActiveChannel] = useState<Channel>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedPropertyId, setSelectedPropertyId] = useState<string>('all');
@@ -191,9 +194,12 @@ export default function MessagesPage() {
   );
 
   return (
-    <div className="flex h-[calc(100vh-var(--topbar-h))] gap-4">
+    <div className="flex h-[calc(100vh-var(--topbar-h)-var(--mobile-nav-h))] md:h-[calc(100vh-var(--topbar-h))] gap-0 md:gap-4">
       {/* LEFT: Inbox */}
-      <div className="w-[340px] flex-shrink-0 bg-white border-r border-gray-200 flex flex-col">
+      <div className={cn(
+        "flex-shrink-0 bg-white border-r border-gray-200 flex flex-col w-full md:w-[340px]",
+        mobilePanel !== 'list' && "hidden md:flex"
+      )}>
         <div className="p-4 border-b border-gray-100">
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-sm font-semibold text-navy">
@@ -264,7 +270,7 @@ export default function MessagesPage() {
             return (
               <button
                 key={conv.id}
-                onClick={() => setSelectedId(conv.id)}
+                onClick={() => { setSelectedId(conv.id); setMobilePanel('chat'); }}
                 className={cn(
                   'w-full text-left px-4 py-3.5 border-b border-gray-50 transition-all flex items-start gap-3',
                   selectedId === conv.id
@@ -300,16 +306,26 @@ export default function MessagesPage() {
       </div>
 
       {/* CENTER: Chat */}
-      <div className="flex-1 flex flex-col bg-white border-r border-gray-200 min-w-0">
+      <div className={cn(
+        "flex-1 flex flex-col bg-white border-r border-gray-200 min-w-0",
+        mobilePanel === 'list' && "hidden md:flex"
+      )}>
         {!selected ? (
           <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
             Select a conversation
           </div>
         ) : (
           <>
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100 flex-shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-navy flex items-center justify-center">
+            <div className="flex items-center justify-between px-3 md:px-5 py-3.5 border-b border-gray-100 flex-shrink-0">
+              <div className="flex items-center gap-2 md:gap-3">
+                {/* Back button — mobile only */}
+                <button
+                  onClick={() => setMobilePanel('list')}
+                  className="md:hidden p-1 -ml-1 rounded-lg hover:bg-gray-100 text-gray-500"
+                >
+                  <ArrowLeft size={18} />
+                </button>
+                <div className="w-9 h-9 rounded-full bg-navy flex items-center justify-center flex-shrink-0">
                   <span className="text-white text-xs font-semibold">{initials(selected.booking?.guestName ?? 'G')}</span>
                 </div>
                 <div>
@@ -319,11 +335,18 @@ export default function MessagesPage() {
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <button className="px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors">
+              <div className="flex items-center gap-1.5 md:gap-2">
+                {/* Info button — mobile only */}
+                <button
+                  onClick={() => setMobilePanel('info')}
+                  className="md:hidden w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500"
+                >
+                  <Info size={17} />
+                </button>
+                <button className="hidden md:block px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors">
                   Mark Resolved
                 </button>
-                <button className="px-3 py-1.5 text-xs font-medium bg-navy text-white rounded-lg hover:opacity-90 transition-colors">
+                <button className="hidden md:block px-3 py-1.5 text-xs font-medium bg-navy text-white rounded-lg hover:opacity-90 transition-colors">
                   Escalate
                 </button>
               </div>
@@ -387,9 +410,19 @@ export default function MessagesPage() {
       </div>
 
       {/* RIGHT: Guest Details */}
-      <div className="w-[300px] flex-shrink-0 bg-white overflow-y-auto">
+      <div className={cn(
+        "flex-shrink-0 bg-white overflow-y-auto w-full md:w-[300px]",
+        mobilePanel !== 'info' && "hidden md:block"
+      )}>
         {selected && (
           <div className="p-5">
+            {/* Back to chat — mobile only */}
+            <button
+              onClick={() => setMobilePanel('chat')}
+              className="md:hidden flex items-center gap-1.5 text-sm text-blue mb-4 -ml-1"
+            >
+              <ArrowLeft size={16} /> Back to chat
+            </button>
             {/* 1. Guest avatar + name + property unit */}
             <div className="text-center mb-5 pb-5 border-b border-gray-100">
               <div className="w-14 h-14 rounded-full bg-navy flex items-center justify-center mx-auto mb-3">
