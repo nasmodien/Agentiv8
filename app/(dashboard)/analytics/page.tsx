@@ -227,11 +227,17 @@ export default function AnalyticsPage() {
       {loading && <div className="flex items-center justify-center py-16 text-gray-400"><RefreshCw size={20} className="animate-spin mr-2" /> Loading...</div>}
 
       {!loading && !data && (
-        <div className="bg-amber-50 border border-amber-200 rounded-[10px] p-6 text-center">
-          <p className="text-amber-800 font-medium mb-2">Database migration required</p>
-          <code className="block mt-3 bg-white border border-amber-200 rounded px-4 py-2 text-sm font-mono">
-            ALTER TABLE &quot;Booking&quot; ADD COLUMN IF NOT EXISTS &quot;totalPrice&quot; DOUBLE PRECISION;
-          </code>
+        <div className="bg-amber-50 border border-amber-200 rounded-[10px] p-6">
+          <p className="text-amber-800 font-medium mb-3">Database migration required — run these in Neon SQL Editor:</p>
+          <div className="bg-white border border-amber-200 rounded px-4 py-3 text-xs font-mono space-y-1 text-gray-700 overflow-x-auto">
+            <div>ALTER TABLE &quot;Booking&quot; ADD COLUMN IF NOT EXISTS &quot;totalPrice&quot; DOUBLE PRECISION;</div>
+            <div>ALTER TABLE &quot;Booking&quot; ADD COLUMN IF NOT EXISTS &quot;guestTotal&quot; DOUBLE PRECISION;</div>
+            <div>ALTER TABLE &quot;Booking&quot; ADD COLUMN IF NOT EXISTS &quot;cleaningFee&quot; DOUBLE PRECISION;</div>
+            <div>ALTER TABLE &quot;Booking&quot; ADD COLUMN IF NOT EXISTS &quot;channelCommission&quot; DOUBLE PRECISION;</div>
+            <div>ALTER TABLE &quot;Booking&quot; ADD COLUMN IF NOT EXISTS &quot;taxAmount&quot; DOUBLE PRECISION;</div>
+            <div>ALTER TABLE &quot;Booking&quot; ADD COLUMN IF NOT EXISTS &quot;hostServiceFee&quot; DOUBLE PRECISION;</div>
+          </div>
+          <p className="text-xs text-amber-600 mt-2">After running these, click Sync in the topbar to re-import your bookings with financial data.</p>
         </div>
       )}
 

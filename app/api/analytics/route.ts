@@ -178,6 +178,10 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     console.error('Analytics error:', error);
+    const msg = String(error);
+    if (msg.includes('column') || msg.includes('does not exist') || msg.includes('Unknown column')) {
+      return NextResponse.json({ error: 'migration_required' }, { status: 500 });
+    }
     return NextResponse.json({ error: 'Failed' }, { status: 500 });
   }
 }
