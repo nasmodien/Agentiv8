@@ -106,11 +106,16 @@ model Booking {
   guestEmail   String?
   guestPhone   String?
   channel      BookingChannel @default(DIRECT)
-  checkIn      DateTime
-  checkOut     DateTime
-  adults       Int            @default(1)
-  status       BookingStatus  @default(CONFIRMED)
-  totalPrice   Float?
+  checkIn           DateTime
+  checkOut          DateTime
+  adults            Int            @default(1)
+  status            BookingStatus  @default(CONFIRMED)
+  totalPrice        Float?
+  guestTotal        Float?
+  cleaningFee       Float?
+  channelCommission Float?
+  taxAmount         Float?
+  hostServiceFee    Float?
   property     Property       @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   conversations Conversation[]
   conciergeBookings ConciergeBooking[]
