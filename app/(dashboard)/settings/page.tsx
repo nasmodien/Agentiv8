@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Settings, Key, Bell, Globe, Shield, Webhook, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { Settings, Key, Bell, Globe, Shield, Webhook, CheckCircle, AlertCircle, Loader2, Percent, Save } from 'lucide-react';
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -76,12 +76,114 @@ const sections: Section[] = [
   },
 ];
 
+function RevenueSettings() {
+  const [hostServiceFee, setHostServiceFee] = useState(3);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/settings?orgId=default&key=HOST_SERVICE_FEE_PCT')
+      .then(r => r.json())
+      .then(d => {
+        if (d.value != null) setHostServiceFee(parseFloat(d.value));
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orgId: 'default', key: 'HOST_SERVICE_FEE_PCT', value: String(hostServiceFee) }),
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-[10px] border border-gray-200 overflow-hidden" style={{ boxShadow: 'var(--shadow)' }}>
+      <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-3">
+        <div className="w-8 h-8 rounded-lg bg-blue-subtle flex items-center justify-center">
+          <Percent size={16} className="text-blue" />
+        </div>
+        <div>
+          <p className="font-semibold text-navy text-sm">Revenue & Payout Settings</p>
+          <p className="text-xs text-gray-500">Configure fee percentages used in analytics calculations</p>
+        </div>
+      </div>
+      <div className="px-5 py-5 space-y-5">
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-xs font-medium text-gray-600">Host Service Fee %</label>
+            <span className="text-sm font-bold text-navy bg-blue-subtle px-2 py-0.5 rounded-md">{hostServiceFee}%</span>
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={20}
+            step={0.5}
+            value={hostServiceFee}
+            onChange={e => setHostServiceFee(parseFloat(e.target.value))}
+            disabled={loading}
+            className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-blue"
+          />
+          <div className="flex justify-between text-[10px] text-gray-400 mt-1">
+            <span>0%</span>
+            <span>5%</span>
+            <span>10%</span>
+            <span>15%</span>
+            <span>20%</span>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            Used for <strong>Direct bookings</strong>: Host Payout = Total Rent + Cleaning Fee − Host Service Fee
+          </p>
+        </div>
+
+        <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+          <p className="text-xs font-semibold text-navy mb-2">Payout Formulas per Channel</p>
+          <div className="space-y-1.5 text-xs text-gray-600">
+            <div className="flex items-start gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#ff5a5f] mt-1 flex-shrink-0" />
+              <span><strong>Airbnb:</strong> Channel Amount − Airbnb Host Fee = Host Payout</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#003580] mt-1 flex-shrink-0" />
+              <span><strong>Booking.com:</strong> Channel Amount − Channel Commission = Host Payout</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#2563eb] mt-1 flex-shrink-0" />
+              <span><strong>Direct:</strong> Total Rent + Cleaning Fee − Host Service Fee ({hostServiceFee}%) = Host Payout</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-end">
+          <button
+            onClick={save}
+            disabled={saving || loading}
+            className="flex items-center gap-2 bg-blue text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50"
+          >
+            <Save size={14} />
+            {saving ? 'Saving…' : saved ? 'Saved!' : 'Save Settings'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const [values, setValues] = useState<Record<string, string>>({});
   const [saveStates, setSaveStates] = useState<Record<string, SaveState>>({});
   const [copied, setCopied] = useState(false);
 
-  // Load existing settings on mount
   useEffect(() => {
     fetch('/api/settings?orgId=default')
       .then((r) => r.json())
@@ -145,6 +247,8 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      <RevenueSettings />
+
       {sections.map((section) => {
         const Icon = section.icon;
         const state = saveStates[section.title] ?? 'idle';
@@ -203,7 +307,7 @@ export default function SettingsPage() {
                   )}
                   {state === 'error' && (
                     <span className="flex items-center gap-1.5 text-xs text-red font-medium">
-                      <AlertCircle size={13} /> Failed to save — check your database connection
+                      <AlertCircle size={13} /> Failed to save
                     </span>
                   )}
                   {(state === 'idle' || state === 'saving') && <span />}
@@ -211,7 +315,7 @@ export default function SettingsPage() {
                   <button
                     onClick={() => handleSave(section)}
                     disabled={state === 'saving'}
-                    className="flex items-center gap-2 bg-blue text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="flex items-center gap-2 bg-blue text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-60"
                   >
                     {state === 'saving' && <Loader2 size={13} className="animate-spin" />}
                     {state === 'saving' ? 'Saving...' : 'Save'}
@@ -223,7 +327,6 @@ export default function SettingsPage() {
         );
       })}
 
-      {/* Env vars reference */}
       <div
         className="bg-white rounded-[10px] border border-gray-200 px-5 py-4"
         style={{ boxShadow: 'var(--shadow)' }}

@@ -65,8 +65,29 @@ export async function GET(request: NextRequest) {
         } : {}),
       },
       include: {
-        booking: true,
-        property: true,
+        booking: {
+          select: {
+            id: true,
+            guestName: true,
+            guestEmail: true,
+            guestPhone: true,
+            checkIn: true,
+            checkOut: true,
+            adults: true,
+            channel: true,
+          },
+        },
+        property: {
+          select: {
+            id: true,
+            name: true,
+            unitNumber: true,
+            wifiNetwork: true,
+            wifiPassword: true,
+            parkingSpot: true,
+            parkingCode: true,
+          },
+        },
         messages: { orderBy: { createdAt: 'asc' }, take: 100 },
       },
       orderBy: { lastMessageAt: 'desc' },

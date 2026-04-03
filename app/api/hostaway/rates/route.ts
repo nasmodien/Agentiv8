@@ -6,8 +6,8 @@ const HOSTAWAY_BASE = 'https://api.hostaway.com/v1';
 async function getToken(orgId: string): Promise<string | null> {
   try {
     const [accSetting, keySetting] = await Promise.all([
-      prisma.setting.findUnique({ where: { orgId_key: { orgId, key: 'hostaway_account_id' } } }),
-      prisma.setting.findUnique({ where: { orgId_key: { orgId, key: 'hostaway_api_key' } } }),
+      prisma.setting.findUnique({ where: { orgId_key: { orgId, key: 'HOSTAWAY_ACCOUNT_ID' } } }),
+      prisma.setting.findUnique({ where: { orgId_key: { orgId, key: 'HOSTAWAY_API_KEY' } } }),
     ]);
     if (!accSetting || !keySetting) return null;
     const res = await fetch(`${HOSTAWAY_BASE}/accessTokens`, {
