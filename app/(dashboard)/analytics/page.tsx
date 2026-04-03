@@ -394,7 +394,7 @@ export default function AnalyticsPage() {
           <div className="bg-white rounded-[10px] p-5" style={{ boxShadow: 'var(--shadow)' }}>
             <div className="flex items-center gap-2 mb-4">
               <Calendar size={16} className="text-blue" />
-              <h2 className="text-sm font-semibold text-navy">6-Month Forecast</h2>
+              <h2 className="text-sm font-semibold text-navy">12-Month Forecast</h2>
               <span className="text-xs text-gray-400 ml-1">Confirmed future bookings</span>
             </div>
             <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
