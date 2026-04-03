@@ -138,7 +138,6 @@ export async function GET(req: NextRequest) {
           airbnb2: 'AIRBNB',
           'booking.com': 'BOOKING_COM',
           bookingcom: 'BOOKING_COM',
-          'bookingcom': 'BOOKING_COM',
           vrbo: 'DIRECT',
           homeaway: 'DIRECT',
           expedia: 'DIRECT',
