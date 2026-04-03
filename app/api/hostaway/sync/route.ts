@@ -134,8 +134,14 @@ export async function GET(req: NextRequest) {
 
         const channelMap: Record<string, 'AIRBNB' | 'BOOKING_COM' | 'DIRECT' | 'WHATSAPP' | 'SMS'> = {
           airbnb: 'AIRBNB',
+          'airbnb.com': 'AIRBNB',
+          airbnb2: 'AIRBNB',
           'booking.com': 'BOOKING_COM',
           bookingcom: 'BOOKING_COM',
+          'bookingcom': 'BOOKING_COM',
+          vrbo: 'DIRECT',
+          homeaway: 'DIRECT',
+          expedia: 'DIRECT',
           direct: 'DIRECT',
         };
         const channel = channelMap[res.channelName?.toLowerCase()] ?? 'DIRECT';

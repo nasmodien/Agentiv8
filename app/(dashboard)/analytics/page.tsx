@@ -10,7 +10,7 @@ interface Summary {
   totalBookings: number; totalNights: number; adr: number; revPAR: number;
   occupancyRate: number; avgStayLength: number; hasFinancials: boolean;
 }
-interface ChannelStat { channel: string; count: number; gross: number; net: number; pct: number }
+interface ChannelStat { channel: string; count: number; gross: number; net: number; fees: number; pct: number }
 interface PropertyStat { id: string; name: string; unitNumber: string | null; gross: number; net: number; bookings: number; nights: number; cleaning: number; otaFees: number }
 interface MonthlyPoint { month: string; gross: number; net: number; bookings: number }
 interface ForecastPoint { month: string; bookings: number; nights: number; projectedRevenue: number; projectedGross: number; occupancy: number }
@@ -342,14 +342,25 @@ export default function AnalyticsPage() {
               </div>
               <DonutChart data={data.channels} />
               {s.hasFinancials && (
-                <div className="mt-3 pt-3 border-t border-gray-100 space-y-1.5">
+                <div className="mt-3 pt-3 border-t border-gray-100 space-y-2">
                   {data.channels.map(c => (
-                    <div key={c.channel} className="flex justify-between text-xs">
-                      <span className="text-gray-500">{c.channel.replace('_', '.')}</span>
-                      <div className="text-right">
+                    <div key={c.channel}>
+                      <div className="flex justify-between text-xs mb-0.5">
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-sm flex-shrink-0" style={{ background: CHANNEL_COLORS[c.channel] ?? '#9ca3af' }} />
+                          <span className="font-medium text-navy">{c.channel.replace('_', '.')}</span>
+                          <span className="text-gray-400">({c.count})</span>
+                        </div>
                         <span className="font-semibold text-navy">{ZAR(showGross ? c.gross : c.net)}</span>
-                        <span className="text-gray-400 ml-2">({c.count} bkgs)</span>
                       </div>
+                      {c.fees > 0 && (
+                        <div className="flex justify-between text-[10px] text-gray-400 pl-3.5">
+                          <span>
+                            {c.channel === 'AIRBNB' ? 'Airbnb Host Fee' : c.channel === 'BOOKING_COM' ? 'Commission' : 'Service Fee'}
+                          </span>
+                          <span className="text-red">−{ZAR(c.fees)}</span>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -397,18 +408,83 @@ export default function AnalyticsPage() {
               <h2 className="text-sm font-semibold text-navy">12-Month Forecast</h2>
               <span className="text-xs text-gray-400 ml-1">Confirmed future bookings</span>
             </div>
-            <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-              {data.forecast.map((f, i) => (
-                <div key={i} className={`rounded-lg p-3 border ${i === 0 ? 'border-blue bg-blue/5' : 'border-gray-100 bg-gray-50'}`}>
-                  <p className="text-xs font-semibold text-navy mb-2">{f.month}</p>
-                  <p className="text-lg font-bold text-navy">{f.bookings}</p>
-                  <p className="text-[10px] text-gray-400 mb-1">bookings · {f.nights}n</p>
-                  <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden mb-1">
-                    <div className="h-full bg-blue rounded-full" style={{ width: `${f.occupancy}%` }} />
+
+            {/* Forecast Bar Chart */}
+            {data.forecast.some(f => f.bookings > 0 || f.projectedRevenue > 0) ? (
+              <div className="mb-5">
+                {/* Revenue bars */}
+                {data.forecast.some(f => f.projectedRevenue > 0) ? (
+                  <div>
+                    <p className="text-xs text-gray-400 mb-2">Projected Revenue (ZAR)</p>
+                    <div className="flex items-end gap-1" style={{ height: '120px' }}>
+                      {data.forecast.map((f, i) => {
+                        const maxRev = Math.max(...data.forecast.map(x => x.projectedRevenue), 1);
+                        const h = f.projectedRevenue > 0 ? Math.max((f.projectedRevenue / maxRev) * 100, 4) : 0;
+                        const isCurrentMonth = i === 0;
+                        return (
+                          <div key={i} className="flex-1 flex flex-col justify-end group relative" style={{ height: '120px' }}>
+                            <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-navy text-white text-[9px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none z-10">
+                              {ZAR(f.projectedRevenue)} · {f.bookings} bkgs · {f.occupancy}% occ
+                            </div>
+                            <div className="w-full rounded-t transition-colors"
+                              style={{ height: `${h}%`, backgroundColor: isCurrentMonth ? '#2563eb' : '#93c5fd' }} />
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <p className="text-[10px] text-gray-500">{f.occupancy}% occ.</p>
+                ) : (
+                  <div>
+                    <p className="text-xs text-gray-400 mb-2">Bookings per Month</p>
+                    <div className="flex items-end gap-1" style={{ height: '80px' }}>
+                      {data.forecast.map((f, i) => {
+                        const maxB = Math.max(...data.forecast.map(x => x.bookings), 1);
+                        const h = f.bookings > 0 ? Math.max((f.bookings / maxB) * 100, 4) : 0;
+                        return (
+                          <div key={i} className="flex-1 flex flex-col justify-end group relative" style={{ height: '80px' }}>
+                            <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-navy text-white text-[9px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none z-10">
+                              {f.bookings} bkgs · {f.nights}n · {f.occupancy}% occ
+                            </div>
+                            <div className="w-full rounded-t" style={{ height: `${h}%`, backgroundColor: i === 0 ? '#2563eb' : '#93c5fd' }} />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                {/* Month labels */}
+                <div className="flex gap-1 mt-1">
+                  {data.forecast.map((f, i) => (
+                    <div key={i} className="flex-1 text-center">
+                      <span className="text-[9px] text-gray-400">{f.month}</span>
+                    </div>
+                  ))}
+                </div>
+                {/* Occupancy line legend */}
+                <div className="flex items-center gap-4 mt-3 pt-3 border-t border-gray-100">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded-sm bg-blue inline-block" />
+                    <span className="text-xs text-gray-500">Current month</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded-sm bg-blue-300 inline-block" />
+                    <span className="text-xs text-gray-500">Future months</span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-6 text-gray-400 text-sm mb-4">No future bookings found. Run sync to load upcoming reservations.</div>
+            )}
+
+            {/* Monthly cards */}
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-2 mt-2">
+              {data.forecast.map((f, i) => (
+                <div key={i} className={`rounded-lg p-2.5 border ${i === 0 ? 'border-blue bg-blue/5' : 'border-gray-100 bg-gray-50'}`}>
+                  <p className="text-[11px] font-semibold text-navy mb-1">{f.month}</p>
+                  <p className="text-base font-bold text-navy">{f.bookings}</p>
+                  <p className="text-[9px] text-gray-400">{f.nights}n · {f.occupancy}%</p>
                   {f.projectedRevenue > 0 && (
-                    <p className="text-[10px] font-medium text-green mt-1">{ZAR(f.projectedRevenue)}</p>
+                    <p className="text-[9px] font-medium text-green mt-0.5">{ZAR(f.projectedRevenue)}</p>
                   )}
                 </div>
               ))}

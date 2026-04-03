@@ -25,6 +25,12 @@ export async function GET(req: NextRequest) {
     const propFilter = propertyIds.length > 0 ? { propertyId: { in: propertyIds } } : {};
     const baseWhere = { property: { orgId }, status: { not: 'CANCELLED' as const }, ...propFilter };
 
+    // Load host service fee % from settings (used for Direct channel payout)
+    const hostServiceFeeSetting = await prisma.setting.findUnique({
+      where: { orgId_key: { orgId, key: 'HOST_SERVICE_FEE_PCT' } },
+    });
+    const hostServiceFeePct = hostServiceFeeSetting ? parseFloat(hostServiceFeeSetting.value) / 100 : 0.03;
+
     const [bookings, futureBookings, properties] = await Promise.all([
       // Historical bookings in date range
       prisma.booking.findMany({
@@ -68,12 +74,39 @@ export async function GET(req: NextRequest) {
     const revPAR = availableNights > 0 ? netRevenue / availableNights : 0;
 
     // ── Channel breakdown ──
-    const channelMap: Record<string, { count: number; gross: number; net: number }> = {};
+    // Per-channel host payout formulas (from Hostaway):
+    //   Airbnb:      channelAmount - airbnbHostFee = hostPayout
+    //   Booking.com: channelAmount - channelCommission = hostPayout
+    //   Direct:      totalRent + cleaningFee - (hostServiceFee%) = hostPayout
+    const channelMap: Record<string, { count: number; gross: number; net: number; fees: number }> = {};
     for (const b of bookings) {
-      if (!channelMap[b.channel]) channelMap[b.channel] = { count: 0, gross: 0, net: 0 };
+      if (!channelMap[b.channel]) channelMap[b.channel] = { count: 0, gross: 0, net: 0, fees: 0 };
       channelMap[b.channel].count++;
-      channelMap[b.channel].gross += b.guestTotal ?? b.totalPrice ?? 0;
-      channelMap[b.channel].net += b.totalPrice ?? 0;
+      const gross = b.guestTotal ?? b.totalPrice ?? 0;
+      channelMap[b.channel].gross += gross;
+
+      let hostPayout = b.totalPrice ?? 0;
+      let feesForChannel = 0;
+      if (b.channel === 'AIRBNB') {
+        // Airbnb: gross - airbnb host fee
+        feesForChannel = b.hostServiceFee ?? b.channelCommission ?? 0;
+        hostPayout = gross - feesForChannel;
+      } else if (b.channel === 'BOOKING_COM') {
+        // Booking.com: gross - commission
+        feesForChannel = b.channelCommission ?? 0;
+        hostPayout = gross - feesForChannel;
+      } else if (b.channel === 'DIRECT') {
+        // Direct: total + cleaning - host service fee %
+        const base = (b.totalPrice ?? 0) + (b.cleaningFee ?? 0);
+        feesForChannel = base * hostServiceFeePct;
+        hostPayout = base - feesForChannel;
+      } else {
+        hostPayout = b.totalPrice ?? 0;
+        feesForChannel = b.channelCommission ?? 0;
+      }
+
+      channelMap[b.channel].net += hostPayout > 0 ? hostPayout : (b.totalPrice ?? 0);
+      channelMap[b.channel].fees += feesForChannel;
     }
 
     // ── Per-property stats ──
@@ -135,7 +168,7 @@ export async function GET(req: NextRequest) {
         hasFinancials: grossRevenue > 0 || netRevenue > 0,
       },
       channels: Object.entries(channelMap).map(([channel, v]) => ({
-        channel, count: v.count, gross: v.gross, net: v.net,
+        channel, count: v.count, gross: v.gross, net: v.net, fees: v.fees,
         pct: bookings.length > 0 ? Math.round((v.count / bookings.length) * 100) : 0,
       })).sort((a, b) => b.count - a.count),
       propertyStats: Object.entries(propMap).map(([id, v]) => ({ id, ...v })).sort((a, b) => b.net - a.net),
