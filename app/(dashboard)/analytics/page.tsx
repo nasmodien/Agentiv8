@@ -32,19 +32,34 @@ function StatCard({ label, value, sub, color = 'text-navy' }: { label: string; v
 }
 
 function BarChart({ data }: { data: MonthlyPoint[] }) {
-  const max = Math.max(...data.map(d => d.revenue), 1);
+  const max = Math.max(...data.map(d => d.revenue > 0 ? d.revenue : d.bookings), 1);
+  const useRevenue = data.some(d => d.revenue > 0);
   return (
-    <div className="flex items-end gap-1 h-28 mt-4">
-      {data.map((d, i) => (
-        <div key={i} className="flex-1 flex flex-col items-center gap-1 group relative">
-          <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-navy text-white text-[9px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none z-10">
-            {d.revenue > 0 ? ZAR(d.revenue) : `${d.bookings} bookings`}
+    <div className="mt-4" style={{ height: '120px', position: 'relative' }}>
+      <div className="flex items-end gap-1" style={{ height: '96px' }}>
+        {data.map((d, i) => {
+          const val = useRevenue ? d.revenue : d.bookings;
+          const heightPct = val > 0 ? Math.max((val / max) * 100, 4) : 0;
+          return (
+            <div key={i} className="flex-1 flex flex-col justify-end group relative" style={{ height: '96px' }}>
+              <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-navy text-white text-[9px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none z-10">
+                {useRevenue ? ZAR(d.revenue) : `${d.bookings} bkgs`}
+              </div>
+              <div
+                className="w-full rounded-t bg-blue hover:bg-blue-light transition-colors cursor-pointer"
+                style={{ height: `${heightPct}%` }}
+              />
+            </div>
+          );
+        })}
+      </div>
+      <div className="flex gap-1 mt-1">
+        {data.map((d, i) => (
+          <div key={i} className="flex-1 text-center">
+            <span className="text-[9px] text-gray-400">{d.month}</span>
           </div>
-          <div className="w-full rounded-t-sm transition-all bg-blue hover:bg-blue-light"
-            style={{ height: `${Math.max((d.revenue / max) * 100, d.bookings > 0 ? 5 : 0)}%`, minHeight: d.bookings > 0 ? '3px' : '0' }} />
-          <span className="text-[9px] text-gray-400 truncate w-full text-center">{d.month}</span>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }
@@ -55,11 +70,11 @@ function DonutChart({ data }: { data: ChannelStat[] }) {
   let offset = 0;
   const total = data.reduce((s, d) => s + d.count, 0);
   const segments = data.map(d => {
-    const pct = total > 0 ? d.count / total : 0;
-    const dashArray = `${pct * circumference} ${circumference}`;
+    const fraction = total > 0 ? d.count / total : 0;
+    const dashArray = `${fraction * circumference} ${circumference}`;
     const rotate = offset * 360 - 90;
-    offset += pct;
-    return { ...d, pct, dashArray, rotate };
+    offset += fraction;
+    return { ...d, fraction, dashArray, rotate, displayPct: Math.round(fraction * 100) };
   });
   return (
     <div className="flex items-center gap-5 mt-3">
@@ -71,7 +86,7 @@ function DonutChart({ data }: { data: ChannelStat[] }) {
             transform={`rotate(${s.rotate} ${cx} ${cy})`} />
         ))}
         <circle cx={cx} cy={cy} r="28" fill="white" />
-        <text x={cx} y={cy - 4} textAnchor="middle" className="text-xs" fontSize="11" fontWeight="bold" fill="#1e2a4a">{total}</text>
+        <text x={cx} y={cy - 4} textAnchor="middle" fontSize="11" fontWeight="bold" fill="#1e2a4a">{total}</text>
         <text x={cx} y={cy + 9} textAnchor="middle" fontSize="8" fill="#9ca3af">bookings</text>
       </svg>
       <div className="space-y-1.5 flex-1 min-w-0">
@@ -79,7 +94,7 @@ function DonutChart({ data }: { data: ChannelStat[] }) {
           <div key={s.channel} className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: CHANNEL_COLORS[s.channel] ?? '#9ca3af' }} />
             <span className="text-xs text-gray-600 truncate flex-1">{s.channel.replace('_', '.')}</span>
-            <span className="text-xs font-semibold text-navy">{s.pct}%</span>
+            <span className="text-xs font-semibold text-navy">{s.displayPct}%</span>
           </div>
         ))}
       </div>
@@ -142,16 +157,25 @@ function PropertyFilter({ properties, selected, onChange }: {
   );
 }
 
+function toInputDate(d: Date) {
+  return d.toISOString().split('T')[0];
+}
+
 export default function AnalyticsPage() {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedProperties, setSelectedProperties] = useState<string[]>([]);
-  const [period, setPeriod] = useState('12');
 
-  const fetchAnalytics = async (propIds: string[], p: string) => {
+  const defaultEnd = new Date();
+  const defaultStart = new Date();
+  defaultStart.setMonth(defaultStart.getMonth() - 3);
+  const [startDate, setStartDate] = useState(toInputDate(defaultStart));
+  const [endDate, setEndDate] = useState(toInputDate(defaultEnd));
+
+  const fetchAnalytics = async (propIds: string[], start: string, end: string) => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ orgId: 'default', period: p });
+      const params = new URLSearchParams({ orgId: 'default', startDate: start, endDate: end });
       propIds.forEach(id => params.append('propertyId', id));
       const res = await fetch(`/api/analytics?${params}`);
       if (!res.ok) throw new Error(`API error ${res.status}`);
@@ -166,7 +190,7 @@ export default function AnalyticsPage() {
     }
   };
 
-  useEffect(() => { fetchAnalytics(selectedProperties, period); }, [selectedProperties, period]);
+  useEffect(() => { fetchAnalytics(selectedProperties, startDate, endDate); }, [selectedProperties, startDate, endDate]);
 
   const s = data?.summary;
   const hasRevenue = (s?.totalRevenue ?? 0) > 0;
@@ -178,17 +202,32 @@ export default function AnalyticsPage() {
         <div>
           <h1 className="text-xl font-bold text-navy">Analytics Dashboard</h1>
           <p className="text-sm text-gray-500">
-            {data ? `${data.summary.totalBookings} bookings` : 'Loading...'} · Last {period} months
+            {data ? `${data.summary.totalBookings} bookings` : 'Loading...'} · {startDate} → {endDate}
           </p>
         </div>
-        <div className="flex items-center gap-3 flex-wrap">
-          <select value={period} onChange={e => setPeriod(e.target.value)}
-            className="text-sm border border-gray-200 rounded-lg px-3 py-2 text-navy bg-white focus:outline-none">
-            <option value="3">Last 3 months</option>
-            <option value="6">Last 6 months</option>
-            <option value="12">Last 12 months</option>
-            <option value="24">Last 24 months</option>
-          </select>
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Quick presets */}
+          {[
+            { label: '1M', months: 1 }, { label: '3M', months: 3 },
+            { label: '6M', months: 6 }, { label: '1Y', months: 12 }, { label: '2Y', months: 24 },
+          ].map(p => {
+            const s = new Date(); s.setMonth(s.getMonth() - p.months);
+            const active = startDate === toInputDate(s);
+            return (
+              <button key={p.label} onClick={() => { setStartDate(toInputDate(s)); setEndDate(toInputDate(new Date())); }}
+                className={`px-2.5 py-1.5 text-xs font-medium rounded-lg border transition-colors ${active ? 'bg-navy text-white border-navy' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                {p.label}
+              </button>
+            );
+          })}
+          <div className="flex items-center gap-1.5 border border-gray-200 rounded-lg px-3 py-1.5 bg-white">
+            <span className="text-xs text-gray-400">From</span>
+            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
+              className="text-xs text-navy bg-transparent focus:outline-none" />
+            <span className="text-xs text-gray-400">To</span>
+            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
+              className="text-xs text-navy bg-transparent focus:outline-none" />
+          </div>
           {data && (
             <PropertyFilter
               properties={data.properties}
