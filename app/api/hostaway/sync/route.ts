@@ -150,7 +150,8 @@ export async function GET(req: NextRequest) {
 
         const fin = (v: unknown) => v != null ? parseFloat(String(v)) : null;
         const financials = {
-          totalPrice:        fin(res.hostPayout ?? res.totalPrice),
+          // airbnbPayoutSum = value reported directly from Airbnb (from Hostaway Financial Settings > AirbnbPayout formula)
+          totalPrice:        fin(res.airbnbPayoutSum ?? res.hostPayout ?? res.totalPrice),
           guestTotal:        fin(res.totalAmount ?? res.guestTotalAmount ?? res.channelAmount),
           cleaningFee:       fin(res.cleaningFee),
           channelCommission: fin(res.channelCommission ?? res.channelCommissionAmount),
@@ -179,64 +180,74 @@ export async function GET(req: NextRequest) {
 
       results.reservations = { synced, total: reservations.length };
 
-      // ── SYNC MESSAGES (Conversations) ──
-      // Only sync messages for active/recent bookings to avoid timeout
-      const now = new Date();
-      const cutoff = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
-      const activeBookings = await prisma.booking.findMany({
-        where: {
-          checkOut: { gte: cutoff },
-        },
-        select: { id: true },
-        orderBy: { checkIn: 'desc' },
-        take: 50,
-      });
-      const activeReservationIds = activeBookings.map(b => b.id);
-
-      // Fetch conversations from Hostaway (linked to reservations)
+      // ── SYNC CONVERSATIONS & MESSAGES ──
+      // Fetch ALL conversations directly from Hostaway with pagination (not per-reservation)
+      // This avoids the 50-booking limit and gets every guest conversation
       let messagesSynced = 0;
+      let convsSynced = 0;
+      const PAGE_SIZE = 100;
+      const MAX_PAGES = 10; // up to 1000 conversations
 
-      for (const reservationId of activeReservationIds) {
+      for (let page = 0; page < MAX_PAGES; page++) {
+        let haConversations: Record<string, unknown>[] = [];
         try {
-          // Get conversation for this reservation
-          const convRes = await fetch(
-            `${HOSTAWAY_BASE}/conversations?reservationId=${reservationId}&limit=10`,
+          const convListRes = await fetch(
+            `${HOSTAWAY_BASE}/conversations?limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}&sortOrder=lastMessage`,
             { headers }
           );
-          if (!convRes.ok) continue;
-          const convData = await convRes.json();
-          const haConversations: Record<string, unknown>[] = convData.result ?? [];
-          if (haConversations.length === 0) continue;
+          if (!convListRes.ok) break;
+          const convListData = await convListRes.json();
+          haConversations = convListData.result ?? [];
+          if (haConversations.length === 0) break;
+        } catch { break; }
 
-          const booking = await prisma.booking.findUnique({ where: { id: reservationId } });
-          if (!booking) continue;
-
-          for (const haCon of haConversations) {
+        for (const haCon of haConversations) {
+          try {
             const haConvId = String(haCon.id);
             const convId = `ha-conv-${haConvId}`;
+            const reservationId = haCon.reservationId != null ? String(haCon.reservationId) : null;
+
+            // Find the booking this conversation belongs to
+            const booking = reservationId
+              ? await prisma.booking.findUnique({ where: { id: reservationId } })
+              : null;
+
+            if (!booking && !reservationId) continue; // skip orphan conversations
 
             // Fetch messages for this conversation
-            const msgRes = await fetch(`${HOSTAWAY_BASE}/conversations/${haConvId}/messages?limit=100`, { headers });
+            const msgRes = await fetch(
+              `${HOSTAWAY_BASE}/conversations/${haConvId}/messages?limit=100`,
+              { headers }
+            );
             if (!msgRes.ok) continue;
             const msgData = await msgRes.json();
             const messages: Record<string, unknown>[] = msgData.result ?? [];
-            if (messages.length === 0) continue;
 
             const lastMsg = messages[messages.length - 1];
-            const lastMsgAt = lastMsg?.createdAt ? new Date(lastMsg.createdAt as string) : new Date();
+            const lastMsgAt = lastMsg?.createdAt
+              ? new Date(lastMsg.createdAt as string)
+              : haCon.lastMessageAt ? new Date(haCon.lastMessageAt as string) : new Date();
+
+            // Only save if we have a linked booking, otherwise use propertyId from conversation
+            const propertyId = booking?.propertyId
+              ?? (haCon.listingMapId != null ? String(haCon.listingMapId) : null)
+              ?? (haCon.listingId != null ? String(haCon.listingId) : null);
+
+            if (!propertyId) continue;
 
             await prisma.conversation.upsert({
               where: { id: convId },
               create: {
                 id: convId,
-                bookingId: reservationId,
-                propertyId: booking.propertyId,
-                channel: booking.channel,
+                bookingId: booking?.id ?? null,
+                propertyId,
+                channel: booking?.channel ?? 'DIRECT',
                 status: 'AI_HANDLED',
                 lastMessageAt: lastMsgAt,
               },
               update: { lastMessageAt: lastMsgAt },
             });
+            convsSynced++;
 
             for (const msg of messages) {
               const msgId = `ha-msg-${haConvId}-${msg.id}`;
@@ -254,13 +265,16 @@ export async function GET(req: NextRequest) {
               });
               messagesSynced++;
             }
+          } catch {
+            // skip individual conversation errors
           }
-        } catch {
-          // skip failed conversation fetches
         }
+
+        // If we got fewer than PAGE_SIZE, no more pages
+        if (haConversations.length < PAGE_SIZE) break;
       }
 
-      results.messages = { synced: messagesSynced };
+      results.messages = { conversations: convsSynced, messages: messagesSynced };
     }
 
     return NextResponse.json({ success: true, results });
