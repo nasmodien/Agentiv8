@@ -5,12 +5,12 @@ import { Download, RefreshCw, ChevronDown, Check, TrendingUp, DollarSign, Calend
 
 interface Property { id: string; name: string; unitNumber: string | null }
 interface Summary {
-  grossRevenue: number; netRevenue: number; cleaningFees: number; otaFees: number;
-  taxes: number; hostServiceFees: number; totalDeductions: number;
+  grossRevenue: number; channelPayout: number; otaFees: number; managementFees: number;
+  netRevenue: number; totalDeductions: number; cleaningFees: number; taxes: number;
   totalBookings: number; totalNights: number; adr: number; revPAR: number;
   occupancyRate: number; avgStayLength: number; hasFinancials: boolean;
 }
-interface ChannelStat { channel: string; count: number; gross: number; net: number; fees: number; pct: number }
+interface ChannelStat { channel: string; count: number; gross: number; channelPayout: number; otaFees: number; managementFee: number; net: number; pct: number }
 interface PropertyStat { id: string; name: string; unitNumber: string | null; gross: number; net: number; bookings: number; nights: number; cleaning: number; otaFees: number }
 interface MonthlyPoint { month: string; gross: number; net: number; bookings: number }
 interface ForecastPoint { month: string; bookings: number; nights: number; projectedRevenue: number; projectedGross: number; occupancy: number }
@@ -257,12 +257,21 @@ export default function AnalyticsPage() {
           {/* Summary cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {s.hasFinancials ? (
-              <>
-                <StatCard label="Gross Revenue" value={ZAR(s.grossRevenue)} sub="Total guest payments" color="text-blue" />
-                <StatCard label="Net Revenue (Host)" value={ZAR(s.netRevenue)} sub="After all deductions" color="text-green" />
-                <StatCard label="Total Deductions" value={ZAR(s.totalDeductions)} sub="Fees, OTA, taxes" color="text-red" />
-                <StatCard label="Avg Daily Rate" value={ZAR(s.adr)} sub={`RevPAR: ${ZAR(s.revPAR)}`} />
-              </>
+              showGross ? (
+                <>
+                  <StatCard label="Gross Revenue" value={ZAR(s.grossRevenue)} sub="Total guest payments" color="text-blue" />
+                  <StatCard label="Total Bookings" value={String(s.totalBookings)} />
+                  <StatCard label="Total Nights" value={String(s.totalNights)} />
+                  <StatCard label="ADR (Gross)" value={s.totalNights > 0 ? ZAR(s.grossRevenue / s.totalNights) : '—'} />
+                </>
+              ) : (
+                <>
+                  <StatCard label="Channel Payout" value={ZAR(s.channelPayout)} sub="After OTA fees" color="text-blue" />
+                  <StatCard label="OTA Fees" value={ZAR(s.otaFees)} sub="Platform commissions" color="text-red" />
+                  <StatCard label="Management Fee" value={ZAR(s.managementFees)} sub="Host service charge" color="text-orange" />
+                  <StatCard label="Net Revenue" value={ZAR(s.netRevenue)} sub="Owner's income" color="text-green" />
+                </>
+              )
             ) : (
               <>
                 <StatCard label="Total Bookings" value={String(s.totalBookings)} color="text-blue" />
@@ -290,33 +299,18 @@ export default function AnalyticsPage() {
                 <DollarSign size={16} className="text-red" />
                 <h2 className="text-sm font-semibold text-navy">Revenue Breakdown & Deductions</h2>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
-                {[
-                  { label: 'Gross Revenue', value: s.grossRevenue, color: 'text-blue', bg: 'bg-blue/5' },
-                  { label: 'OTA/Platform Fees', value: -s.otaFees, color: 'text-red', bg: 'bg-red/5' },
-                  { label: 'Taxes (VAT etc.)', value: -s.taxes, color: 'text-orange', bg: 'bg-orange/5' },
-                  { label: 'Host Service Fees', value: -s.hostServiceFees, color: 'text-purple-600', bg: 'bg-purple-50' },
-                ].map(item => (
-                  <div key={item.label} className={`rounded-lg p-3 ${item.bg}`}>
-                    <p className="text-xs text-gray-500 mb-1">{item.label}</p>
-                    <p className={`text-base font-bold ${item.color}`}>
-                      {item.value >= 0 ? '' : '−'}{ZAR(Math.abs(item.value))}
-                    </p>
-                  </div>
-                ))}
-              </div>
               {/* Waterfall visual */}
               <div className="space-y-2 border-t border-gray-100 pt-4">
                 {[
-                  { label: 'Gross Revenue', value: s.grossRevenue, cumulative: s.grossRevenue },
-                  { label: '− OTA/Platform Fees', value: s.otaFees, cumulative: s.grossRevenue - s.otaFees, deduction: true },
-                  { label: '− Taxes & VAT', value: s.taxes, cumulative: s.grossRevenue - s.otaFees - s.taxes, deduction: true },
-                  { label: '− Host Service Fees', value: s.hostServiceFees, cumulative: s.netRevenue, deduction: true },
-                  { label: '= Net Revenue (Host Payout)', value: s.netRevenue, cumulative: s.netRevenue, net: true },
+                  { label: 'Gross Revenue', value: s.grossRevenue, deduction: false, subtotal: false, net: false },
+                  { label: '− OTA/Platform Fees', value: s.otaFees, deduction: true, subtotal: false, net: false },
+                  { label: '= Channel Payout', value: s.channelPayout, deduction: false, subtotal: true, net: false },
+                  { label: '− Management Fee', value: s.managementFees, deduction: true, subtotal: false, net: false },
+                  { label: '= Net Revenue (Owner)', value: s.netRevenue, deduction: false, subtotal: false, net: true },
                 ].map((row, i) => (
-                  <div key={i} className={`flex justify-between items-center text-sm py-1.5 ${row.net ? 'border-t-2 border-gray-300 font-bold' : ''}`}>
-                    <span className={row.deduction ? 'text-red text-xs' : row.net ? 'text-navy font-semibold' : 'text-gray-600 text-xs'}>{row.label}</span>
-                    <span className={row.deduction ? 'text-red text-xs' : row.net ? 'text-green font-bold' : 'text-blue text-xs font-medium'}>
+                  <div key={i} className={`flex justify-between items-center text-sm py-1.5 ${row.net ? 'border-t-2 border-gray-300 font-bold' : row.subtotal ? 'border-t border-gray-200' : ''}`}>
+                    <span className={row.deduction ? 'text-red text-xs' : row.net ? 'text-navy font-semibold' : row.subtotal ? 'text-navy text-xs font-medium' : 'text-gray-600 text-xs'}>{row.label}</span>
+                    <span className={row.deduction ? 'text-red text-xs' : row.net ? 'text-green font-bold' : row.subtotal ? 'text-navy text-xs font-semibold' : 'text-blue text-xs font-medium'}>
                       {row.deduction ? `−${ZAR(row.value)}` : ZAR(row.value)}
                     </span>
                   </div>
@@ -348,25 +342,33 @@ export default function AnalyticsPage() {
               </div>
               <DonutChart data={data.channels} />
               {s.hasFinancials && (
-                <div className="mt-3 pt-3 border-t border-gray-100 space-y-2">
+                <div className="mt-3 pt-3 border-t border-gray-100 space-y-3">
                   {data.channels.map(c => (
-                    <div key={c.channel}>
+                    <div key={c.channel} className="space-y-0.5">
                       <div className="flex justify-between text-xs mb-0.5">
                         <div className="flex items-center gap-1.5">
                           <span className="w-2 h-2 rounded-sm flex-shrink-0" style={{ background: CHANNEL_COLORS[c.channel] ?? '#9ca3af' }} />
                           <span className="font-medium text-navy">{c.channel.replace('_', '.')}</span>
                           <span className="text-gray-400">({c.count})</span>
                         </div>
-                        <span className="font-semibold text-navy">{ZAR(showGross ? c.gross : c.net)}</span>
+                        <span className="font-semibold text-navy">{ZAR(c.gross)}</span>
                       </div>
-                      {c.fees > 0 && (
-                        <div className="flex justify-between text-[10px] text-gray-400 pl-3.5">
-                          <span>
-                            {c.channel === 'AIRBNB' ? 'Airbnb Host Fee' : c.channel === 'BOOKING_COM' ? 'Commission' : 'Service Fee'}
-                          </span>
-                          <span className="text-red">−{ZAR(c.fees)}</span>
+                      {c.otaFees > 0 && (
+                        <div className="flex justify-between text-[10px] pl-3.5">
+                          <span className="text-gray-500">OTA fee</span>
+                          <span className="text-red">−{ZAR(c.otaFees)}</span>
                         </div>
                       )}
+                      {c.managementFee > 0 && (
+                        <div className="flex justify-between text-[10px] pl-3.5">
+                          <span className="text-gray-500">Management fee</span>
+                          <span className="text-orange">−{ZAR(c.managementFee)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-[10px] pl-3.5">
+                        <span className="text-gray-500">Net</span>
+                        <span className="text-green font-bold">{ZAR(c.net)}</span>
+                      </div>
                     </div>
                   ))}
                 </div>

@@ -75,6 +75,9 @@ export async function GET(request: NextRequest) {
             checkOut: true,
             adults: true,
             channel: true,
+            status: true,
+            totalPrice: true,    // host payout from channel
+            guestTotal: true,    // what guest paid (gross)
           },
         },
         property: {
@@ -82,6 +85,9 @@ export async function GET(request: NextRequest) {
             id: true,
             name: true,
             unitNumber: true,
+            address: true,
+            checkInTime: true,
+            checkOutTime: true,
             wifiNetwork: true,
             wifiPassword: true,
             parkingSpot: true,

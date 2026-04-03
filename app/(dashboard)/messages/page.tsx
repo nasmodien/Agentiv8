@@ -31,10 +31,28 @@ interface DbConversation {
     checkOut: string;
     adults: number;
     channel: string;
+    status?: string;
+    totalPrice?: number | null;
+    guestTotal?: number | null;
   } | null;
-  property: { id?: string; name: string; unitNumber: string | null; wifiNetwork: string | null; wifiPassword: string | null; parkingSpot: string | null; parkingCode: string | null } | null;
+  property: {
+    id?: string;
+    name: string;
+    unitNumber: string | null;
+    address?: string | null;
+    checkInTime?: string | null;
+    checkOutTime?: string | null;
+    wifiNetwork: string | null;
+    wifiPassword: string | null;
+    parkingSpot: string | null;
+    parkingCode: string | null;
+  } | null;
   messages: DbMessage[];
 }
+
+const CHANNEL_COLORS: Record<string, string> = {
+  AIRBNB: '#ff5a5f', BOOKING_COM: '#003580', DIRECT: '#2563eb', WHATSAPP: '#25d366', SMS: '#6b7280',
+};
 
 function initials(name: string) {
   return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
@@ -369,15 +387,17 @@ export default function MessagesPage() {
       </div>
 
       {/* RIGHT: Guest Details */}
-      <div className="w-[280px] flex-shrink-0 bg-white overflow-y-auto">
+      <div className="w-[300px] flex-shrink-0 bg-white overflow-y-auto">
         {selected && (
           <div className="p-5">
+            {/* 1. Guest avatar + name + property unit */}
             <div className="text-center mb-5 pb-5 border-b border-gray-100">
               <div className="w-14 h-14 rounded-full bg-navy flex items-center justify-center mx-auto mb-3">
                 <span className="text-white text-lg font-semibold">{initials(selected.booking?.guestName ?? 'G')}</span>
               </div>
               <p className="font-semibold text-navy text-sm">{selected.booking?.guestName ?? 'Guest'}</p>
               <p className="text-xs text-gray-500">{selected.property?.unitNumber ?? selected.property?.name ?? ''}</p>
+              {/* 2. Guest contact */}
               {selected.booking?.guestEmail && (
                 <p className="text-xs text-gray-400 mt-1">{selected.booking.guestEmail}</p>
               )}
@@ -386,37 +406,108 @@ export default function MessagesPage() {
               )}
             </div>
 
-            {selected.booking && (
-              <div className="space-y-3 mb-5 pb-5 border-b border-gray-100">
-                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Reservation</h3>
-                <div className="space-y-2.5">
-                  <div className="flex justify-between">
-                    <span className="text-xs text-gray-500">Check-in</span>
-                    <span className="text-xs font-medium text-navy">
-                      {new Date(selected.booking.checkIn).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' })}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-xs text-gray-500">Check-out</span>
-                    <span className="text-xs font-medium text-navy">
-                      {new Date(selected.booking.checkOut).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' })}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-xs text-gray-500">Guests</span>
-                    <span className="text-xs font-medium text-navy">{selected.booking.adults} adults</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-xs text-gray-500">Channel</span>
-                    <span className="text-xs font-medium text-navy">{selected.booking.channel}</span>
+            {/* 3. Reservation section */}
+            {selected.booking && (() => {
+              const bk = selected.booking;
+              const pr = selected.property;
+              const checkIn = new Date(bk.checkIn);
+              const checkOut = new Date(bk.checkOut);
+              const nightCount = Math.max(Math.round((checkOut.getTime() - checkIn.getTime()) / 86400000), 1);
+              const statusBadgeMap: Record<string, { label: string; color: string }> = {
+                CONFIRMED:   { label: 'Confirmed',   color: 'bg-green-100 text-green-700' },
+                CHECKED_IN:  { label: 'Checked In',  color: 'bg-blue-100 text-blue-700' },
+                CHECKED_OUT: { label: 'Checked Out', color: 'bg-gray-100 text-gray-600' },
+                CANCELLED:   { label: 'Cancelled',   color: 'bg-red-100 text-red-600' },
+              };
+              const badge = bk.status ? (statusBadgeMap[bk.status] ?? { label: bk.status, color: 'bg-gray-100 text-gray-600' }) : null;
+              const channelColor = CHANNEL_COLORS[bk.channel] ?? '#9ca3af';
+              const zarFmt = (n: number) => `ZAR ${Math.round(n).toLocaleString('en-ZA')}`;
+              return (
+                <div className="mb-5 pb-5 border-b border-gray-100">
+                  <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Reservation</h3>
+                  <div className="bg-gray-50 rounded-xl p-3 space-y-2.5">
+                    {/* Status badge */}
+                    <div className="flex items-center justify-between">
+                      {badge && (
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${badge.color}`}>{badge.label}</span>
+                      )}
+                      {(bk.guestTotal ?? 0) > 0 && (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700">Paid</span>
+                      )}
+                    </div>
+                    {/* Channel */}
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: channelColor }} />
+                      <span className="text-xs text-gray-600">{bk.channel.replace('_', '.')}</span>
+                    </div>
+                    {/* Property name + address */}
+                    {pr && (
+                      <div>
+                        <p className="text-xs font-medium text-navy">{pr.unitNumber ?? pr.name}</p>
+                        {pr.address && <p className="text-[10px] text-gray-400">{pr.address}</p>}
+                      </div>
+                    )}
+                    {/* Check-in / Check-out dates side by side */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <p className="text-[10px] text-gray-400">Check-in</p>
+                        <p className="text-xs font-medium text-navy">{checkIn.toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: '2-digit' })}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-gray-400">Check-out</p>
+                        <p className="text-xs font-medium text-navy">{checkOut.toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: '2-digit' })}</p>
+                      </div>
+                    </div>
+                    {/* Check-in time / Check-out time side by side */}
+                    {pr && (pr.checkInTime || pr.checkOutTime) && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <p className="text-[10px] text-gray-400">Check-in time</p>
+                          <p className="text-xs font-medium text-navy">{pr.checkInTime ?? '—'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-gray-400">Check-out time</p>
+                          <p className="text-xs font-medium text-navy">{pr.checkOutTime ?? '—'}</p>
+                        </div>
+                      </div>
+                    )}
+                    {/* Nights / Guests side by side */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <p className="text-[10px] text-gray-400">Nights</p>
+                        <p className="text-xs font-medium text-navy">{nightCount}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-gray-400">Guests</p>
+                        <p className="text-xs font-medium text-navy">{bk.adults} adults</p>
+                      </div>
+                    </div>
+                    {/* Financial row */}
+                    {((bk.guestTotal ?? 0) > 0 || (bk.totalPrice ?? 0) > 0) && (
+                      <div className="pt-1.5 border-t border-gray-200 space-y-1">
+                        {(bk.guestTotal ?? 0) > 0 && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-[10px] text-gray-500">Total</span>
+                            <span className="text-xs font-semibold text-navy">{zarFmt(bk.guestTotal!)}</span>
+                          </div>
+                        )}
+                        {(bk.totalPrice ?? 0) > 0 && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-[10px] text-gray-500">Payout</span>
+                            <span className="text-xs font-medium text-green-700">{zarFmt(bk.totalPrice!)}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
+            {/* 4. Property Info section */}
             {selected.property && (
               <div className="space-y-3 mb-5 pb-5 border-b border-gray-100">
-                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Property</h3>
+                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Property Info</h3>
                 <div className="space-y-2.5">
                   {selected.property.wifiNetwork && (
                     <div className="flex items-center gap-2.5">
@@ -445,6 +536,7 @@ export default function MessagesPage() {
               </div>
             )}
 
+            {/* 5. Concierge section */}
             <div className="space-y-3">
               <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Concierge</h3>
               <div className="space-y-2">

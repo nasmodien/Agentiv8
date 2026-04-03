@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
     const propFilter = propertyIds.length > 0 ? { propertyId: { in: propertyIds } } : {};
     const baseWhere = { property: { orgId }, status: { not: 'CANCELLED' as const }, ...propFilter };
 
-    // Load host service fee % from settings (used for Direct channel payout)
+    // Load host service fee % from settings (management fee applied to channel payout)
     const hostServiceFeeSetting = await prisma.setting.findUnique({
       where: { orgId_key: { orgId, key: 'HOST_SERVICE_FEE_PCT' } },
     });
@@ -57,69 +57,65 @@ export async function GET(req: NextRequest) {
       Math.max(Math.round((b.checkOut.getTime() - b.checkIn.getTime()) / 86400000), 1);
 
     // ── Financial summary ──
-    const grossRevenue    = sum(bookings.map(b => b.guestTotal ?? b.totalPrice ?? 0));
-    const netRevenue      = sum(bookings.map(b => b.totalPrice ?? 0));
-    const cleaningFees    = sum(bookings.map(b => b.cleaningFee ?? 0));
-    const otaFees         = sum(bookings.map(b => b.channelCommission ?? 0));
-    const taxes           = sum(bookings.map(b => b.taxAmount ?? 0));
-    const hostServiceFees = sum(bookings.map(b => b.hostServiceFee ?? 0));
-    const totalDeductions = cleaningFees + otaFees + taxes + hostServiceFees;
-    const totalNights     = sum(bookings.map(nights));
+    // Gross Revenue: what guests pay
+    const grossRevenue   = sum(bookings.map(b => b.guestTotal ?? b.totalPrice ?? 0));
+    // Channel Payout: what host receives from channel (after OTA fees)
+    const channelPayout  = sum(bookings.map(b => b.totalPrice ?? 0));
+    // OTA Fees: derived (what OTA keeps)
+    const otaFees        = grossRevenue - channelPayout;
+    // Management Fee: applied to channel payout
+    const managementFees = channelPayout * hostServiceFeePct;
+    // Net Revenue: final owner income
+    const netRevenue     = channelPayout - managementFees;
+    // Total deductions
+    const totalDeductions = otaFees + managementFees;
+    // Cleaning fees (informational)
+    const cleaningFees   = sum(bookings.map(b => b.cleaningFee ?? 0));
+
+    const totalNights    = sum(bookings.map(nights));
 
     const daysInPeriod = Math.max(Math.round((periodEnd.getTime() - periodStart.getTime()) / 86400000), 1);
     const propCount = propertyIds.length > 0 ? propertyIds.length : properties.length;
     const availableNights = daysInPeriod * propCount;
     const occupancyRate = availableNights > 0 ? Math.min((totalNights / availableNights) * 100, 100) : 0;
-    const adr = totalNights > 0 ? netRevenue / totalNights : 0;
-    const revPAR = availableNights > 0 ? netRevenue / availableNights : 0;
+    const adr = totalNights > 0 ? channelPayout / totalNights : 0;
+    const revPAR = availableNights > 0 ? channelPayout / availableNights : 0;
 
     // ── Channel breakdown ──
-    // Per-channel host payout formulas (from Hostaway):
-    //   Airbnb:      channelAmount - airbnbHostFee = hostPayout
-    //   Booking.com: channelAmount - channelCommission = hostPayout
-    //   Direct:      totalRent + cleaningFee - (hostServiceFee%) = hostPayout
-    const channelMap: Record<string, { count: number; gross: number; net: number; fees: number }> = {};
+    const channelMap: Record<string, { count: number; gross: number; channelPayout: number; otaFees: number; managementFee: number; net: number }> = {};
     for (const b of bookings) {
-      if (!channelMap[b.channel]) channelMap[b.channel] = { count: 0, gross: 0, net: 0, fees: 0 };
+      if (!channelMap[b.channel]) channelMap[b.channel] = { count: 0, gross: 0, channelPayout: 0, otaFees: 0, managementFee: 0, net: 0 };
       channelMap[b.channel].count++;
       const gross = b.guestTotal ?? b.totalPrice ?? 0;
+      const cp = b.totalPrice ?? 0;
+      const ota = gross - cp;
+      const mgmt = cp * hostServiceFeePct;
+      const net = cp - mgmt;
       channelMap[b.channel].gross += gross;
-
-      let hostPayout = b.totalPrice ?? 0;
-      let feesForChannel = 0;
-      if (b.channel === 'AIRBNB') {
-        // Airbnb: gross - airbnb host fee
-        feesForChannel = b.hostServiceFee ?? b.channelCommission ?? 0;
-        hostPayout = gross - feesForChannel;
-      } else if (b.channel === 'BOOKING_COM') {
-        // Booking.com: gross - commission
-        feesForChannel = b.channelCommission ?? 0;
-        hostPayout = gross - feesForChannel;
-      } else if (b.channel === 'DIRECT') {
-        // Direct: total + cleaning - host service fee %
-        const base = (b.totalPrice ?? 0) + (b.cleaningFee ?? 0);
-        feesForChannel = base * hostServiceFeePct;
-        hostPayout = base - feesForChannel;
-      } else {
-        hostPayout = b.totalPrice ?? 0;
-        feesForChannel = b.channelCommission ?? 0;
-      }
-
-      channelMap[b.channel].net += hostPayout > 0 ? hostPayout : (b.totalPrice ?? 0);
-      channelMap[b.channel].fees += feesForChannel;
+      channelMap[b.channel].channelPayout += cp;
+      channelMap[b.channel].otaFees += ota;
+      channelMap[b.channel].managementFee += mgmt;
+      channelMap[b.channel].net += net;
     }
 
     // ── Per-property stats ──
-    const propMap: Record<string, { name: string; unitNumber: string | null; gross: number; net: number; bookings: number; nights: number; cleaning: number; otaFees: number }> = {};
+    const propMap: Record<string, { name: string; unitNumber: string | null; gross: number; channelPayout: number; net: number; managementFee: number; bookings: number; nights: number; cleaning: number; otaFees: number }> = {};
     for (const b of bookings) {
       const pid = b.property.id;
-      if (!propMap[pid]) propMap[pid] = { name: b.property.name, unitNumber: b.property.unitNumber, gross: 0, net: 0, bookings: 0, nights: 0, cleaning: 0, otaFees: 0 };
-      propMap[pid].gross += b.guestTotal ?? b.totalPrice ?? 0;
-      propMap[pid].net += b.totalPrice ?? 0;
+      if (!propMap[pid]) propMap[pid] = { name: b.property.name, unitNumber: b.property.unitNumber, gross: 0, channelPayout: 0, net: 0, managementFee: 0, bookings: 0, nights: 0, cleaning: 0, otaFees: 0 };
+      const gross = b.guestTotal ?? b.totalPrice ?? 0;
+      const cp = b.totalPrice ?? 0;
+      const ota = gross - cp;
+      const mgmt = cp * hostServiceFeePct;
+      const net = cp - mgmt;
+      propMap[pid].gross += gross;
+      propMap[pid].channelPayout += cp;
+      propMap[pid].otaFees += ota;
+      propMap[pid].managementFee += mgmt;
+      propMap[pid].net += net;
       propMap[pid].bookings++;
       propMap[pid].nights += nights(b);
       propMap[pid].cleaning += b.cleaningFee ?? 0;
-      propMap[pid].otaFees += b.channelCommission ?? 0;
     }
 
     // ── Monthly chart (historical) ──
@@ -132,13 +128,13 @@ export async function GET(req: NextRequest) {
       monthlyRevenue.push({
         month: label,
         gross: sum(mb.map(b => b.guestTotal ?? b.totalPrice ?? 0)),
-        net: sum(mb.map(b => b.totalPrice ?? 0)),
+        net: sum(mb.map(b => (b.totalPrice ?? 0) * (1 - hostServiceFeePct))),
         bookings: mb.length,
       });
       cur.setMonth(cur.getMonth() + 1);
     }
 
-    // ── Forecast (future 6 months) ──
+    // ── Forecast (future 12 months) ──
     const forecast = [];
     const today = new Date();
     for (let i = 0; i < 12; i++) {
@@ -153,7 +149,7 @@ export async function GET(req: NextRequest) {
         month: label,
         bookings: fb.length,
         nights: fn,
-        projectedRevenue: sum(fb.map(b => b.totalPrice ?? 0)),
+        projectedRevenue: sum(fb.map(b => (b.totalPrice ?? 0) * (1 - hostServiceFeePct))),
         projectedGross: sum(fb.map(b => b.guestTotal ?? b.totalPrice ?? 0)),
         occupancy: fPropCount > 0 ? Math.min(Math.round((fn / (daysInMonth * fPropCount)) * 100), 100) : 0,
       });
@@ -161,14 +157,15 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       summary: {
-        grossRevenue, netRevenue, cleaningFees, otaFees, taxes, hostServiceFees, totalDeductions,
+        grossRevenue, channelPayout, otaFees, managementFees, netRevenue, totalDeductions, cleaningFees,
         totalBookings: bookings.length, totalNights, adr, revPAR,
         occupancyRate: Math.round(occupancyRate * 10) / 10,
         avgStayLength: bookings.length > 0 ? Math.round((totalNights / bookings.length) * 10) / 10 : 0,
-        hasFinancials: grossRevenue > 0 || netRevenue > 0,
+        hasFinancials: grossRevenue > 0 || channelPayout > 0,
       },
       channels: Object.entries(channelMap).map(([channel, v]) => ({
-        channel, count: v.count, gross: v.gross, net: v.net, fees: v.fees,
+        channel, count: v.count, gross: v.gross, channelPayout: v.channelPayout,
+        otaFees: v.otaFees, managementFee: v.managementFee, net: v.net,
         pct: bookings.length > 0 ? Math.round((v.count / bookings.length) * 100) : 0,
       })).sort((a, b) => b.count - a.count),
       propertyStats: Object.entries(propMap).map(([id, v]) => ({ id, ...v })).sort((a, b) => b.net - a.net),
