@@ -57,12 +57,18 @@ export async function GET(req: NextRequest) {
       Math.max(Math.round((b.checkOut.getTime() - b.checkIn.getTime()) / 86400000), 1);
 
     // ── Financial summary ──
-    // Gross Revenue: what guests pay
-    const grossRevenue   = sum(bookings.map(b => b.guestTotal ?? b.totalPrice ?? 0));
+    // Use stored channelCommission for OTA fees (most accurate — directly from Hostaway)
+    // Derive gross: totalPrice (host payout) + channelCommission (OTA cut)
+    const bkgOtaFee = (b: typeof bookings[0]) => b.channelCommission ?? 0;
+    const storedCommissions = sum(bookings.map(bkgOtaFee));
     // Channel Payout: what host receives from channel (after OTA fees)
     const channelPayout  = sum(bookings.map(b => b.totalPrice ?? 0));
-    // OTA Fees: derived (what OTA keeps)
-    const otaFees        = grossRevenue - channelPayout;
+    // Gross Revenue: guestTotal if available, else derive from payout + commission
+    const grossRevenue   = sum(bookings.map(b =>
+      b.guestTotal ?? ((b.totalPrice ?? 0) + bkgOtaFee(b))
+    ));
+    // OTA Fees: stored commission is most accurate; fall back to derived
+    const otaFees        = storedCommissions > 0 ? storedCommissions : grossRevenue - channelPayout;
     // Management Fee: applied to channel payout
     const managementFees = channelPayout * hostServiceFeePct;
     // Net Revenue: final owner income
@@ -86,16 +92,15 @@ export async function GET(req: NextRequest) {
     for (const b of bookings) {
       if (!channelMap[b.channel]) channelMap[b.channel] = { count: 0, gross: 0, channelPayout: 0, otaFees: 0, managementFee: 0, net: 0 };
       channelMap[b.channel].count++;
-      const gross = b.guestTotal ?? b.totalPrice ?? 0;
       const cp = b.totalPrice ?? 0;
-      const ota = gross - cp;
+      const ota = bkgOtaFee(b) > 0 ? bkgOtaFee(b) : Math.max(0, (b.guestTotal ?? cp) - cp);
+      const gross = b.guestTotal ?? cp + ota;
       const mgmt = cp * hostServiceFeePct;
-      const net = cp - mgmt;
       channelMap[b.channel].gross += gross;
       channelMap[b.channel].channelPayout += cp;
       channelMap[b.channel].otaFees += ota;
       channelMap[b.channel].managementFee += mgmt;
-      channelMap[b.channel].net += net;
+      channelMap[b.channel].net += cp - mgmt;
     }
 
     // ── Per-property stats ──
@@ -103,16 +108,15 @@ export async function GET(req: NextRequest) {
     for (const b of bookings) {
       const pid = b.property.id;
       if (!propMap[pid]) propMap[pid] = { name: b.property.name, unitNumber: b.property.unitNumber, gross: 0, channelPayout: 0, net: 0, managementFee: 0, bookings: 0, nights: 0, cleaning: 0, otaFees: 0 };
-      const gross = b.guestTotal ?? b.totalPrice ?? 0;
       const cp = b.totalPrice ?? 0;
-      const ota = gross - cp;
+      const ota = bkgOtaFee(b) > 0 ? bkgOtaFee(b) : Math.max(0, (b.guestTotal ?? cp) - cp);
+      const gross = b.guestTotal ?? cp + ota;
       const mgmt = cp * hostServiceFeePct;
-      const net = cp - mgmt;
       propMap[pid].gross += gross;
       propMap[pid].channelPayout += cp;
       propMap[pid].otaFees += ota;
       propMap[pid].managementFee += mgmt;
-      propMap[pid].net += net;
+      propMap[pid].net += cp - mgmt;
       propMap[pid].bookings++;
       propMap[pid].nights += nights(b);
       propMap[pid].cleaning += b.cleaningFee ?? 0;

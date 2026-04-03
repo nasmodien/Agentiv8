@@ -146,15 +146,26 @@ export async function GET(req: NextRequest) {
           expedia: 'DIRECT',
           direct: 'DIRECT',
         };
-        const channel = channelMap[res.channelName?.toLowerCase()] ?? 'DIRECT';
+        // Robust channel detection — use includes() to handle "Airbnb Pro", "Airbnb 2", etc.
+        const rawChannel = (res.channelName ?? '').toLowerCase();
+        let channel: 'AIRBNB' | 'BOOKING_COM' | 'DIRECT' | 'WHATSAPP' | 'SMS' = 'DIRECT';
+        if (rawChannel.includes('airbnb')) channel = 'AIRBNB';
+        else if (rawChannel.includes('booking')) channel = 'BOOKING_COM';
+        else if (rawChannel.includes('whatsapp')) channel = 'WHATSAPP';
+        else if (rawChannel.includes('sms')) channel = 'SMS';
+        else if (channelMap[rawChannel]) channel = channelMap[rawChannel];
 
         const fin = (v: unknown) => v != null ? parseFloat(String(v)) : null;
+        const hostPayout = fin(res.airbnbPayoutSum ?? res.hostPayout ?? res.totalPrice);
+        const commission = fin(res.channelCommission ?? res.channelCommissionAmount ?? res.pmCommission);
         const financials = {
-          // airbnbPayoutSum = value reported directly from Airbnb (from Hostaway Financial Settings > AirbnbPayout formula)
-          totalPrice:        fin(res.airbnbPayoutSum ?? res.hostPayout ?? res.totalPrice),
-          guestTotal:        fin(res.totalAmount ?? res.guestTotalAmount ?? res.channelAmount),
+          // airbnbPayoutSum = value reported directly from Airbnb
+          totalPrice:        hostPayout,
+          // Derive guestTotal: check direct fields first, then derive from payout + commission
+          guestTotal:        fin(res.totalAmount ?? res.guestTotalAmount ?? res.channelAmount)
+                             ?? (hostPayout != null && commission != null ? hostPayout + commission : hostPayout),
           cleaningFee:       fin(res.cleaningFee),
-          channelCommission: fin(res.channelCommission ?? res.channelCommissionAmount),
+          channelCommission: commission,
           taxAmount:         fin(res.taxAmount ?? res.totalTaxes ?? res.vatAmount),
           hostServiceFee:    fin(res.hostServiceFee ?? res.airbnbHostFee),
         };
