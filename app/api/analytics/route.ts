@@ -108,7 +108,7 @@ export async function GET(req: NextRequest) {
     // ── Forecast (future 6 months) ──
     const forecast = [];
     const today = new Date();
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 12; i++) {
       const d = new Date(today.getFullYear(), today.getMonth() + i, 1);
       const y = d.getFullYear(); const m = d.getMonth();
       const label = d.toLocaleDateString('en-ZA', { month: 'short', year: '2-digit' });

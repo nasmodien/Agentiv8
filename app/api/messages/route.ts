@@ -43,29 +43,49 @@ const mockConversations = [
 ];
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const cursor = searchParams.get('cursor'); // lastMessageAt ISO for pagination
+    const limit = Math.min(parseInt(searchParams.get('limit') ?? '50', 10), 100);
+    const search = searchParams.get('search') ?? '';
+    const propertyId = searchParams.get('propertyId');
+    const status = searchParams.get('status');
+
     const conversations = await prisma.conversation.findMany({
+      where: {
+        ...(propertyId ? { propertyId } : {}),
+        ...(status ? { status: status as 'AI_HANDLED' | 'NEEDS_REVIEW' | 'ESCALATED' | 'RESOLVED' } : {}),
+        ...(cursor ? { lastMessageAt: { lt: new Date(cursor) } } : {}),
+        ...(search ? {
+          OR: [
+            { booking: { guestName: { contains: search, mode: 'insensitive' } } },
+            { messages: { some: { content: { contains: search, mode: 'insensitive' } } } },
+          ],
+        } : {}),
+      },
       include: {
         booking: true,
         property: true,
-        messages: {
-          orderBy: { createdAt: 'asc' },
-          take: 50,
-        },
+        messages: { orderBy: { createdAt: 'asc' }, take: 100 },
       },
       orderBy: { lastMessageAt: 'desc' },
-      take: 50,
+      take: limit,
     });
 
-    if (conversations.length === 0) {
-      return NextResponse.json({ conversations: mockConversations, source: 'mock' });
+    if (conversations.length === 0 && !cursor && !search && !propertyId) {
+      return NextResponse.json({ conversations: mockConversations, source: 'mock', hasMore: false });
     }
 
-    return NextResponse.json({ conversations, source: 'db' });
+    return NextResponse.json({
+      conversations,
+      source: 'db',
+      hasMore: conversations.length === limit,
+      nextCursor: conversations.length > 0 ? conversations[conversations.length - 1].lastMessageAt.toISOString() : null,
+    });
   } catch (error) {
     console.error('GET /api/messages error:', error);
-    return NextResponse.json({ conversations: mockConversations, source: 'mock' });
+    return NextResponse.json({ conversations: mockConversations, source: 'mock', hasMore: false });
   }
 }
 

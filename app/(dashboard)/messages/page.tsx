@@ -81,49 +81,71 @@ const channelTabs: { key: Channel; label: string }[] = [
   { key: 'WHATSAPP', label: 'WhatsApp' },
 ];
 
+type StatusFilter = 'all' | 'AI_HANDLED' | 'NEEDS_REVIEW' | 'ESCALATED' | 'RESOLVED';
+
 export default function MessagesPage() {
   const [conversations, setConversations] = useState<DbConversation[]>([]);
   const [allProperties, setAllProperties] = useState<{ id: string; name: string; unitNumber: string | null }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [activeChannel, setActiveChannel] = useState<Channel>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedPropertyId, setSelectedPropertyId] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
 
+  const buildUrl = useCallback((cursor?: string) => {
+    const params = new URLSearchParams({ limit: '50' });
+    if (selectedPropertyId !== 'all') params.set('propertyId', selectedPropertyId);
+    if (statusFilter !== 'all') params.set('status', statusFilter);
+    if (searchQuery.trim()) params.set('search', searchQuery.trim());
+    if (cursor) params.set('cursor', cursor);
+    return `/api/messages?${params}`;
+  }, [selectedPropertyId, statusFilter, searchQuery]);
+
   const fetchConversations = useCallback(async () => {
+    setLoading(true);
     try {
-      const res = await fetch('/api/messages');
+      const res = await fetch(buildUrl());
       const data = await res.json();
-      if (data.conversations?.length > 0) {
-        setConversations(data.conversations);
-        if (!selectedId) setSelectedId(data.conversations[0].id);
-      }
-    } catch {
-      // keep existing
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedId]);
+      setConversations(data.conversations ?? []);
+      setHasMore(data.hasMore ?? false);
+      setNextCursor(data.nextCursor ?? null);
+      if (!selectedId && data.conversations?.length > 0) setSelectedId(data.conversations[0].id);
+    } catch { /* keep existing */ }
+    finally { setLoading(false); }
+  }, [buildUrl, selectedId]);
+
+  const loadMore = async () => {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const res = await fetch(buildUrl(nextCursor));
+      const data = await res.json();
+      setConversations(prev => [...prev, ...(data.conversations ?? [])]);
+      setHasMore(data.hasMore ?? false);
+      setNextCursor(data.nextCursor ?? null);
+    } finally { setLoadingMore(false); }
+  };
 
   useEffect(() => {
     fetchConversations();
+  }, [fetchConversations]);
+
+  useEffect(() => {
     fetch('/api/properties?orgId=default').then(r => r.json()).then(d => {
       setAllProperties(d.properties ?? []);
     }).catch(() => {});
   }, [fetchConversations]);
 
-  const filtered = conversations.filter((c) => {
-    const matchChannel = activeChannel === 'all' || c.channel === activeChannel || c.booking?.channel === activeChannel;
-    const matchProperty = selectedPropertyId === 'all' || c.property?.id === selectedPropertyId || (c as unknown as { propertyId?: string }).propertyId === selectedPropertyId;
-    const guestName = c.booking?.guestName ?? '';
-    const lastMsg = c.messages[c.messages.length - 1]?.content ?? '';
-    const matchSearch = !searchQuery ||
-      guestName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      lastMsg.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchChannel && matchProperty && matchSearch;
-  });
+  // Server handles property/status/search filters; client filters channel only
+  const filtered = activeChannel === 'all'
+    ? conversations
+    : conversations.filter(c => c.channel === activeChannel || c.booking?.channel === activeChannel);
 
 
   const selected = conversations.find(c => c.id === selectedId) ?? null;
@@ -155,17 +177,15 @@ export default function MessagesPage() {
       {/* LEFT: Inbox */}
       <div className="w-[340px] flex-shrink-0 bg-white border-r border-gray-200 flex flex-col">
         <div className="p-4 border-b border-gray-100">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-base font-semibold text-navy">
-              Unified Inbox
-              {conversations.length > 0 && (
-                <span className="ml-2 text-xs font-normal text-gray-400">{filtered.length}</span>
-              )}
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-sm font-semibold text-navy">
+              Inbox
+              <span className="ml-1.5 text-xs font-normal text-gray-400">{filtered.length}{hasMore ? '+' : ''}</span>
             </h2>
             <select
               value={selectedPropertyId}
-              onChange={e => { setSelectedPropertyId(e.target.value); setSelectedId(null); }}
-              className="text-xs border border-gray-200 rounded-lg px-2 py-1 text-navy bg-white focus:outline-none max-w-[140px] truncate"
+              onChange={e => { setSelectedPropertyId(e.target.value); setSelectedId(null); setConversations([]); }}
+              className="text-xs border border-gray-200 rounded-lg px-2 py-1 text-navy bg-white focus:outline-none max-w-[130px] truncate"
             >
               <option value="all">All Properties</option>
               {allProperties.map(p => (
@@ -173,34 +193,49 @@ export default function MessagesPage() {
               ))}
             </select>
           </div>
-          <div className="flex gap-1 flex-wrap mb-3">
+
+          {/* Status filter */}
+          <div className="flex gap-1 flex-wrap mb-2">
+            {([
+              { key: 'all', label: 'All' },
+              { key: 'AI_HANDLED', label: 'AI' },
+              { key: 'ESCALATED', label: 'Escalated' },
+              { key: 'NEEDS_REVIEW', label: 'Review' },
+              { key: 'RESOLVED', label: 'Resolved' },
+            ] as { key: StatusFilter; label: string }[]).map(s => (
+              <button key={s.key} onClick={() => { setStatusFilter(s.key); setConversations([]); setSelectedId(null); }}
+                className={cn('px-2 py-0.5 rounded-full text-[10px] font-medium transition-colors',
+                  statusFilter === s.key ? 'bg-navy text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')}>
+                {s.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Channel filter */}
+          <div className="flex gap-1 flex-wrap mb-2">
             {channelTabs.map((ch) => (
-              <button
-                key={ch.key}
-                onClick={() => setActiveChannel(ch.key)}
-                className={cn(
-                  'px-2.5 py-1 rounded-full text-xs font-medium transition-colors',
-                  activeChannel === ch.key ? 'bg-blue text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                )}
-              >
+              <button key={ch.key} onClick={() => setActiveChannel(ch.key)}
+                className={cn('px-2 py-0.5 rounded-full text-[10px] font-medium transition-colors',
+                  activeChannel === ch.key ? 'bg-blue text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')}>
                 {ch.label}
               </button>
             ))}
           </div>
+
           <div className="relative">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search conversations..."
+            <input type="text" placeholder="Search guests or messages..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => { setSearchQuery(e.target.value); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') { setConversations([]); fetchConversations(); } }}
               className="w-full pl-8 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/20"
             />
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {filtered.length === 0 && (
+          {loading && <div className="text-center text-gray-400 text-xs py-8"><RefreshCw size={14} className="animate-spin inline mr-1" />Loading...</div>}
+          {!loading && filtered.length === 0 && (
             <div className="text-center text-gray-400 text-sm py-12">No conversations found</div>
           )}
           {filtered.map((conv) => {
@@ -236,6 +271,13 @@ export default function MessagesPage() {
               </button>
             );
           })}
+          {hasMore && (
+            <button onClick={loadMore} disabled={loadingMore}
+              className="w-full py-3 text-xs text-blue hover:bg-blue-subtle transition-colors flex items-center justify-center gap-1.5 border-t border-gray-100">
+              {loadingMore ? <RefreshCw size={12} className="animate-spin" /> : null}
+              {loadingMore ? 'Loading...' : 'Load more conversations'}
+            </button>
+          )}
         </div>
       </div>
 
