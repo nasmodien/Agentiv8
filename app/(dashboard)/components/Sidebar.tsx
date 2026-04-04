@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
   MessageSquare,
-  Calendar,
   CalendarDays,
   Home,
   Coffee,
@@ -17,9 +16,6 @@ import {
   AlertTriangle,
   RefreshCw,
   ChevronDown,
-  ListChecks,
-  DollarSign,
-  Users,
   CheckSquare,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';

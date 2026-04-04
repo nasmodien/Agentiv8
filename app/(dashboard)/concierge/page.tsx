@@ -7,12 +7,6 @@ import { cn } from '@/lib/utils';
 
 type Category = 'all' | 'wine' | 'tours' | 'inhouse';
 
-const categories: { key: Category; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'wine', label: 'Wine & Dine' },
-  { key: 'tours', label: 'Local Tours' },
-  { key: 'inhouse', label: 'In-House Services' },
-];
 
 interface Service {
   id: string;

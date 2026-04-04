@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
-  Sparkles, Users, ListChecks, DollarSign, Plus, RefreshCw,
+  Sparkles, Users, ListChecks, Plus, RefreshCw,
   CheckCircle, Clock, AlertTriangle, X, Check,
   Trash2, Phone, Mail, Edit2, Calendar,
 } from 'lucide-react';
