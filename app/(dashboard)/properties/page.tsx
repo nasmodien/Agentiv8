@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Home, Plus, RefreshCw, CheckCircle, AlertCircle, Search,
-  Eye, X, Users, BedDouble, DoorOpen, Wifi, MapPin, Star,
+  Eye, X, Users, BedDouble, DoorOpen, MapPin,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
