@@ -16,6 +16,7 @@ const mainNav = [
 
 const moreNav = [
   { label: 'Concierge', href: '/concierge' },
+  { label: 'Cleaning', href: '/cleaning' },
   { label: 'Knowledge Base', href: '/knowledge' },
   { label: 'Sync', href: '/sync' },
   { label: 'Settings', href: '/settings' },

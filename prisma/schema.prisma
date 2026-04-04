@@ -82,6 +82,7 @@ model Property {
   conversations  Conversation[]
   cleaningTasks  CleaningTask[]
   maintenanceIssues MaintenanceIssue[]
+  cleanerAssignments CleanerProperty[]
 }
 
 enum BookingChannel {
@@ -119,6 +120,7 @@ model Booking {
   property     Property       @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   conversations Conversation[]
   conciergeBookings ConciergeBooking[]
+  cleaningTasks     CleaningTask[]
 }
 
 enum ConversationStatus {
@@ -160,16 +162,77 @@ enum TaskStatus {
   PENDING
   IN_PROGRESS
   COMPLETED
+  VERIFIED
+  CANCELLED
+}
+
+model Cleaner {
+  id        String            @id @default(cuid())
+  orgId     String
+  name      String
+  email     String?
+  phone     String?
+  payRate   Float?
+  notes     String?           @db.Text
+  active    Boolean           @default(true)
+  createdAt DateTime          @default(now())
+  tasks     CleaningTask[]
+  properties CleanerProperty[]
+}
+
+model CleanerProperty {
+  id         String   @id @default(cuid())
+  cleanerId  String
+  propertyId String
+  cleaner    Cleaner  @relation(fields: [cleanerId], references: [id], onDelete: Cascade)
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@unique([cleanerId, propertyId])
 }
 
 model CleaningTask {
-  id          String     @id @default(cuid())
-  propertyId  String
-  assignee    String?
-  scheduledAt DateTime
-  status      TaskStatus @default(PENDING)
-  createdAt   DateTime   @default(now())
-  property    Property   @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  id             String       @id @default(cuid())
+  propertyId     String
+  cleanerId      String?
+  bookingId      String?
+  assignee       String?
+  scheduledAt    DateTime
+  completedAt    DateTime?
+  status         TaskStatus   @default(PENDING)
+  priority       String       @default("NORMAL")
+  notes          String?      @db.Text
+  payAmount      Float?
+  createdAt      DateTime     @default(now())
+  property       Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  cleaner        Cleaner?     @relation(fields: [cleanerId], references: [id], onDelete: SetNull)
+  booking        Booking?     @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  checklistItems TaskChecklistItem[]
+}
+
+model ChecklistTemplate {
+  id         String                  @id @default(cuid())
+  orgId      String
+  name       String
+  propertyId String?
+  createdAt  DateTime                @default(now())
+  items      ChecklistTemplateItem[]
+}
+
+model ChecklistTemplateItem {
+  id         String            @id @default(cuid())
+  templateId String
+  label      String
+  order      Int               @default(0)
+  template   ChecklistTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+}
+
+model TaskChecklistItem {
+  id     String       @id @default(cuid())
+  taskId String
+  label  String
+  done   Boolean      @default(false)
+  order  Int          @default(0)
+  task   CleaningTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
 }
 
 enum IssuePriority {
