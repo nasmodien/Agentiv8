@@ -31,7 +31,7 @@ const CHANNEL_CONFIG: Record<string, { label: string; bg: string; text: string }
 };
 
 function ChannelDots({ bookings }: { bookings: { channel: string }[] }) {
-  const channels = [...new Set(bookings.map((b) => b.channel))];
+  const channels = Array.from(new Set(bookings.map((b) => b.channel)));
   if (channels.length === 0) return <span className="text-xs text-gray-400">—</span>;
   return (
     <div className="flex gap-1">
