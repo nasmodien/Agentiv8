@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Search, ChevronDown, ShoppingBag } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -62,8 +63,9 @@ const services: Service[] = [
   },
 ];
 
-export default function ConciergePage() {
-  const [activeCategory, setActiveCategory] = useState<Category>('all');
+function ConciergePageContent() {
+  const searchParams = useSearchParams();
+  const activeCategory = (searchParams.get('cat') ?? 'all') as Category;
   const [searchQuery, setSearchQuery] = useState('');
   const [propertyOpen, setPropertyOpen] = useState(false);
   const [bookedIds, setBookedIds] = useState<string[]>([]);
@@ -107,24 +109,6 @@ export default function ConciergePage() {
 
       {/* Controls */}
       <div className="flex items-center gap-3">
-        {/* Category Tabs */}
-        <div className="flex gap-1.5">
-          {categories.map((cat) => (
-            <button
-              key={cat.key}
-              onClick={() => setActiveCategory(cat.key)}
-              className={cn(
-                'px-3 py-1.5 rounded-full text-xs font-medium transition-colors',
-                activeCategory === cat.key
-                  ? 'bg-navy text-white'
-                  : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
-              )}
-            >
-              {cat.label}
-            </button>
-          ))}
-        </div>
-
         {/* Search */}
         <div className="relative ml-auto">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -198,5 +182,13 @@ export default function ConciergePage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function ConciergePage() {
+  return (
+    <Suspense>
+      <ConciergePageContent />
+    </Suspense>
   );
 }
