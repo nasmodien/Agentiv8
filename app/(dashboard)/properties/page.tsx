@@ -40,89 +40,95 @@ function normaliseChannel(raw: string): string {
 }
 
 // Brand icon SVGs — each returns a 28×28 circle that matches the real logo style
-function ChannelIcon({ channel, title }: { channel: string; title?: string }) {
+function ChannelIcon({ channel }: { channel: string }) {
+  const label = channel.charAt(0).toUpperCase() + channel.slice(1);
   const icons: Record<string, JSX.Element> = {
     airbnb: (
-      <svg viewBox="0 0 28 28" width="28" height="28" title={title ?? 'Airbnb'}>
+      <svg viewBox="0 0 28 28" width="28" height="28">
+        <title>Airbnb</title>
         <circle cx="14" cy="14" r="14" fill="#FF5A5F"/>
-        {/* Airbnb bélo symbol (simplified) */}
         <path d="M14 5.5c-1.1 0-2 .9-2 2 0 .75.41 1.4 1.02 1.75C11.2 10.43 9.5 12.8 9.5 14c0 1.38.9 2.5 2 2.5.55 0 1.05-.22 1.42-.58C13.24 17.32 13.62 19 14 19.5c.38-.5.76-2.18 1.08-3.58.37.36.87.58 1.42.58 1.1 0 2-1.12 2-2.5 0-1.2-1.7-3.57-3.52-4.75.61-.35 1.02-1 1.02-1.75 0-1.1-.9-2-2-2z" fill="white" opacity="0.95"/>
       </svg>
     ),
     booking: (
-      <svg viewBox="0 0 28 28" width="28" height="28" title={title ?? 'Booking.com'}>
+      <svg viewBox="0 0 28 28" width="28" height="28">
+        <title>Booking.com</title>
         <circle cx="14" cy="14" r="14" fill="#003580"/>
         <text x="14" y="19" textAnchor="middle" fill="white" fontSize="13" fontWeight="bold" fontFamily="Arial,sans-serif">B.</text>
       </svg>
     ),
     vrbo: (
-      <svg viewBox="0 0 28 28" width="28" height="28" title={title ?? 'VRBO'}>
+      <svg viewBox="0 0 28 28" width="28" height="28">
+        <title>VRBO</title>
         <circle cx="14" cy="14" r="14" fill="#1158A7"/>
         <text x="14" y="18.5" textAnchor="middle" fill="white" fontSize="9" fontWeight="bold" fontFamily="Arial,sans-serif">VRBO</text>
       </svg>
     ),
     homeaway: (
-      <svg viewBox="0 0 28 28" width="28" height="28" title={title ?? 'HomeAway'}>
+      <svg viewBox="0 0 28 28" width="28" height="28">
+        <title>HomeAway</title>
         <circle cx="14" cy="14" r="14" fill="#1158A7"/>
         <text x="14" y="19" textAnchor="middle" fill="white" fontSize="13" fontWeight="bold" fontFamily="Arial,sans-serif">H</text>
       </svg>
     ),
     expedia: (
-      <svg viewBox="0 0 28 28" width="28" height="28" title={title ?? 'Expedia'}>
+      <svg viewBox="0 0 28 28" width="28" height="28">
+        <title>Expedia</title>
         <circle cx="14" cy="14" r="14" fill="#FFC72C"/>
         <text x="14" y="19" textAnchor="middle" fill="white" fontSize="13" fontWeight="bold" fontFamily="Arial,sans-serif">E</text>
       </svg>
     ),
     google: (
-      <svg viewBox="0 0 28 28" width="28" height="28" title={title ?? 'Google'}>
+      <svg viewBox="0 0 28 28" width="28" height="28">
+        <title>Google</title>
         <circle cx="14" cy="14" r="14" fill="#4285F4"/>
         <text x="14" y="19" textAnchor="middle" fill="white" fontSize="13" fontWeight="bold" fontFamily="Arial,sans-serif">G</text>
       </svg>
     ),
     tripadvisor: (
-      <svg viewBox="0 0 28 28" width="28" height="28" title={title ?? 'TripAdvisor'}>
+      <svg viewBox="0 0 28 28" width="28" height="28">
+        <title>TripAdvisor</title>
         <circle cx="14" cy="14" r="14" fill="#00AA6C"/>
         <text x="14" y="19" textAnchor="middle" fill="white" fontSize="13" fontWeight="bold" fontFamily="Arial,sans-serif">T</text>
       </svg>
     ),
     wotif: (
-      <svg viewBox="0 0 28 28" width="28" height="28" title={title ?? 'Wotif'}>
+      <svg viewBox="0 0 28 28" width="28" height="28">
+        <title>Wotif</title>
         <circle cx="14" cy="14" r="14" fill="#F59E0B"/>
         <text x="14" y="19" textAnchor="middle" fill="white" fontSize="13" fontWeight="bold" fontFamily="Arial,sans-serif">W</text>
       </svg>
     ),
     agoda: (
-      <svg viewBox="0 0 28 28" width="28" height="28" title={title ?? 'Agoda'}>
+      <svg viewBox="0 0 28 28" width="28" height="28">
+        <title>Agoda</title>
         <circle cx="14" cy="14" r="14" fill="#5C328A"/>
         <text x="14" y="19" textAnchor="middle" fill="white" fontSize="13" fontWeight="bold" fontFamily="Arial,sans-serif">A</text>
       </svg>
     ),
     whatsapp: (
-      <svg viewBox="0 0 28 28" width="28" height="28" title={title ?? 'WhatsApp'}>
+      <svg viewBox="0 0 28 28" width="28" height="28">
+        <title>WhatsApp</title>
         <circle cx="14" cy="14" r="14" fill="#25D366"/>
         <text x="14" y="19" textAnchor="middle" fill="white" fontSize="13" fontWeight="bold" fontFamily="Arial,sans-serif">W</text>
       </svg>
     ),
     direct: (
-      <svg viewBox="0 0 28 28" width="28" height="28" title={title ?? 'Direct'}>
+      <svg viewBox="0 0 28 28" width="28" height="28">
+        <title>Direct</title>
         <circle cx="14" cy="14" r="14" fill="#6B7280"/>
         <text x="14" y="19" textAnchor="middle" fill="white" fontSize="13" fontWeight="bold" fontFamily="Arial,sans-serif">D</text>
       </svg>
     ),
   };
 
-  const icon = icons[channel];
-  if (!icon) {
-    // Fallback: grey circle with first letter
-    const letter = channel[0]?.toUpperCase() ?? '?';
-    return (
-      <svg viewBox="0 0 28 28" width="28" height="28" title={title ?? channel}>
-        <circle cx="14" cy="14" r="14" fill="#9CA3AF"/>
-        <text x="14" y="19" textAnchor="middle" fill="white" fontSize="13" fontWeight="bold" fontFamily="Arial,sans-serif">{letter}</text>
-      </svg>
-    );
-  }
-  return icon;
+  return icons[channel] ?? (
+    <svg viewBox="0 0 28 28" width="28" height="28">
+      <title>{label}</title>
+      <circle cx="14" cy="14" r="14" fill="#9CA3AF"/>
+      <text x="14" y="19" textAnchor="middle" fill="white" fontSize="13" fontWeight="bold" fontFamily="Arial,sans-serif">{label[0]}</text>
+    </svg>
+  );
 }
 
 function ChannelDots({ channels }: { channels: string[] }) {
@@ -132,7 +138,7 @@ function ChannelDots({ channels }: { channels: string[] }) {
     <div className="flex gap-1 flex-wrap">
       {unique.map((ch) => (
         <span key={ch} className="flex-shrink-0">
-          <ChannelIcon channel={ch} title={ch} />
+          <ChannelIcon channel={ch} />
         </span>
       ))}
     </div>
