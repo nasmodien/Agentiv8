@@ -4,11 +4,16 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Sparkles, Users, ListChecks, DollarSign, Plus, RefreshCw,
   CheckCircle, Clock, AlertTriangle, X, Check,
-  Trash2, Phone, Mail, Edit2, Calendar,
+  Trash2, Phone, Mail, Edit2, Calendar, CalendarDays,
+  ChevronLeft, ChevronRight, Zap, Building2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-type Tab = 'tasks' | 'cleaners' | 'checklists' | 'pay';
+type Tab = 'tasks' | 'calendar' | 'schedule' | 'cleaners' | 'checklists' | 'pay';
+
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DAYS_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const PROP_COLORS = ['#0e7490','#1d4ed8','#15803d','#b45309','#7c3aed','#be185d','#0369a1','#c2410c'];
 
 interface Property { id: string; name: string; unitNumber: string | null }
 interface Cleaner {
@@ -437,6 +442,10 @@ export default function CleaningPage() {
   const [showNewChecklist, setShowNewChecklist] = useState(false);
   const [editChecklist, setEditChecklist] = useState<ChecklistTemplate | null>(null);
   const [statusFilter, setStatusFilter] = useState('all');
+  const [autoScheduling, setAutoScheduling] = useState(false);
+  const [autoResult, setAutoResult] = useState<{ created: number; skipped: number } | null>(null);
+  const today = new Date();
+  const [calMonth, setCalMonth] = useState({ year: today.getFullYear(), month: today.getMonth() });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -516,6 +525,23 @@ export default function CleaningPage() {
     setTemplates(prev => prev.filter(t => t.id !== id));
   };
 
+  const autoSchedule = async () => {
+    setAutoScheduling(true);
+    setAutoResult(null);
+    try {
+      const res = await fetch('/api/cleaning/auto-schedule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orgId: 'default', daysAhead: 90 }),
+      });
+      const json = await res.json();
+      setAutoResult({ created: json.created ?? 0, skipped: json.skipped ?? 0 });
+      if (json.tasks?.length > 0) {
+        setTasks(prev => [...json.tasks, ...prev]);
+      }
+    } finally { setAutoScheduling(false); }
+  };
+
   // Stats
   const pending = tasks.filter(t => t.status === 'PENDING').length;
   const inProgress = tasks.filter(t => t.status === 'IN_PROGRESS').length;
@@ -544,12 +570,30 @@ export default function CleaningPage() {
             <p className="text-xs text-gray-500">{tasks.length} tasks · {cleaners.length} cleaners</p>
           </div>
         </div>
-        <button
-          onClick={() => setShowNewTask(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-navy text-white text-sm font-medium rounded-xl hover:opacity-90"
-        >
-          <Plus size={16} /> New Task
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Auto-schedule */}
+          <div className="flex flex-col items-end gap-1">
+            <button
+              onClick={autoSchedule}
+              disabled={autoScheduling}
+              className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white text-sm font-medium rounded-xl hover:opacity-90 disabled:opacity-60"
+            >
+              {autoScheduling ? <RefreshCw size={15} className="animate-spin" /> : <Zap size={15} />}
+              Auto-Schedule
+            </button>
+            {autoResult && (
+              <span className="text-[10px] text-gray-500">
+                ✓ {autoResult.created} created · {autoResult.skipped} skipped
+              </span>
+            )}
+          </div>
+          <button
+            onClick={() => setShowNewTask(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-navy text-white text-sm font-medium rounded-xl hover:opacity-90"
+          >
+            <Plus size={16} /> New Task
+          </button>
+        </div>
       </div>
 
       {/* Stats row */}
@@ -568,15 +612,17 @@ export default function CleaningPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
+      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 overflow-x-auto">
         {([
-          { key: 'tasks', label: 'Tasks', icon: Calendar },
-          { key: 'cleaners', label: 'Cleaners', icon: Users },
+          { key: 'tasks',      label: 'Tasks',      icon: Calendar },
+          { key: 'calendar',   label: 'Calendar',   icon: CalendarDays },
+          { key: 'schedule',   label: 'By Property',icon: Building2 },
+          { key: 'cleaners',   label: 'Cleaners',   icon: Users },
           { key: 'checklists', label: 'Checklists', icon: ListChecks },
-          { key: 'pay', label: 'Pay', icon: DollarSign },
+          { key: 'pay',        label: 'Pay',        icon: DollarSign },
         ] as { key: Tab; label: string; icon: React.ElementType }[]).map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
-            className={cn('flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-colors',
+            className={cn('flex-shrink-0 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-medium transition-colors',
               tab === t.key ? 'bg-white text-navy shadow-sm' : 'text-gray-500 hover:text-gray-700')}>
             <t.icon size={13} /> <span className="hidden sm:inline">{t.label}</span>
           </button>
@@ -773,6 +819,215 @@ export default function CleaningPage() {
           </div>
         </div>
       )}
+
+      {/* ── CALENDAR TAB ── */}
+      {!loading && tab === 'calendar' && (() => {
+        const { year, month } = calMonth;
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const cells = [...Array(firstDay).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
+        const propIds = properties.map(p => p.id);
+        const propColor = (id: string) => PROP_COLORS[propIds.indexOf(id) % PROP_COLORS.length];
+
+        const getTasksForDay = (day: number) => {
+          const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          return tasks.filter(t => {
+            const d = new Date(t.scheduledAt);
+            return d.getFullYear() === year && d.getMonth() === month && d.getDate() === day;
+          });
+        };
+
+        const totalCostThisMonth = tasks.filter(t => {
+          const d = new Date(t.scheduledAt);
+          return d.getFullYear() === year && d.getMonth() === month && t.status !== 'CANCELLED';
+        }).reduce((s, t) => s + (t.payAmount ?? 0), 0);
+
+        return (
+          <div>
+            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden" style={{ boxShadow: 'var(--shadow)' }}>
+              {/* Month nav */}
+              <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+                <button onClick={() => setCalMonth(d => d.month === 0 ? { year: d.year - 1, month: 11 } : { ...d, month: d.month - 1 })}
+                  className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500"><ChevronLeft size={18} /></button>
+                <div className="flex items-center gap-3">
+                  <h2 className="font-bold text-navy text-base">{MONTHS[month]} {year}</h2>
+                  <button onClick={() => setCalMonth({ year: today.getFullYear(), month: today.getMonth() })}
+                    className="text-xs px-2.5 py-1 border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600">Today</button>
+                  {totalCostThisMonth > 0 && (
+                    <span className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
+                      ZAR {Math.round(totalCostThisMonth).toLocaleString()} est. cost
+                    </span>
+                  )}
+                </div>
+                <button onClick={() => setCalMonth(d => d.month === 11 ? { year: d.year + 1, month: 0 } : { ...d, month: d.month + 1 })}
+                  className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500"><ChevronRight size={18} /></button>
+              </div>
+
+              {/* Day headers */}
+              <div className="grid grid-cols-7 border-b border-gray-100">
+                {DAYS_SHORT.map(d => (
+                  <div key={d} className="py-2 text-center text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
+                    <span className="hidden sm:inline">{d}</span>
+                    <span className="sm:hidden">{d[0]}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Calendar grid */}
+              <div className="grid grid-cols-7">
+                {cells.map((day, i) => {
+                  const isToday = day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
+                  const dayTasks = day ? getTasksForDay(day) : [];
+                  const dayCost = dayTasks.filter(t => t.status !== 'CANCELLED').reduce((s, t) => s + (t.payAmount ?? 0), 0);
+                  return (
+                    <div key={i} className={cn(
+                      'min-h-[70px] md:min-h-[90px] border-r border-b border-gray-50 p-1 last:border-r-0',
+                      isToday ? 'bg-blue/5' : ''
+                    )}>
+                      {day && (
+                        <>
+                          <span className={cn(
+                            'inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-semibold mb-1',
+                            isToday ? 'bg-blue text-white' : 'text-gray-600'
+                          )}>{day}</span>
+                          <div className="space-y-0.5">
+                            {dayTasks.slice(0, 3).map(t => (
+                              <div
+                                key={t.id}
+                                className="text-[10px] font-medium px-1.5 py-0.5 rounded truncate text-white flex items-center gap-1"
+                                style={{ backgroundColor: propColor(t.propertyId) }}
+                                title={`${t.property.unitNumber ?? t.property.name}${t.cleaner ? ` · ${t.cleaner.name}` : ''}${t.payAmount ? ` · ZAR ${t.payAmount}` : ''}`}
+                              >
+                                <span className="truncate">{t.property.unitNumber ?? t.property.name}</span>
+                              </div>
+                            ))}
+                            {dayTasks.length > 3 && (
+                              <div className="text-[10px] text-gray-400">+{dayTasks.length - 3} more</div>
+                            )}
+                          </div>
+                          {dayCost > 0 && (
+                            <div className="text-[10px] text-green-600 font-semibold mt-0.5 hidden sm:block">
+                              ZAR {Math.round(dayCost).toLocaleString()}
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Legend */}
+            {properties.length > 0 && (
+              <div className="mt-3 bg-white rounded-xl border border-gray-100 px-4 py-3 flex flex-wrap gap-3 items-center" style={{ boxShadow: 'var(--shadow)' }}>
+                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Properties</span>
+                {properties.map(p => (
+                  <div key={p.id} className="flex items-center gap-1.5 text-xs text-gray-600">
+                    <div className="w-3 h-3 rounded-sm flex-shrink-0" style={{ backgroundColor: propColor(p.id) }} />
+                    {p.unitNumber ?? p.name}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* ── BY PROPERTY SCHEDULE TAB ── */}
+      {!loading && tab === 'schedule' && (() => {
+        const propIds = properties.map(p => p.id);
+        const propColor = (id: string) => PROP_COLORS[propIds.indexOf(id) % PROP_COLORS.length];
+
+        const propStats = properties.map(prop => {
+          const propTasks = tasks.filter(t => t.propertyId === prop.id && t.status !== 'CANCELLED');
+          const upcoming = propTasks.filter(t => new Date(t.scheduledAt) >= today).sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
+          const totalCost = propTasks.reduce((s, t) => s + (t.payAmount ?? 0), 0);
+          const pendingCount = propTasks.filter(t => t.status === 'PENDING').length;
+          const completedCount = propTasks.filter(t => t.status === 'COMPLETED' || t.status === 'VERIFIED').length;
+          const assignedCleaner = cleaners.find(c => c.properties.some(cp => cp.property.id === prop.id));
+          return { prop, upcoming, totalCost, pendingCount, completedCount, assignedCleaner, totalTasks: propTasks.length };
+        });
+
+        const grandTotal = propStats.reduce((s, p) => s + p.totalCost, 0);
+
+        return (
+          <div className="space-y-4">
+            {/* Grand total banner */}
+            {grandTotal > 0 && (
+              <div className="bg-navy rounded-xl p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-white/60">Total Estimated Cleaning Cost</p>
+                  <p className="text-2xl font-bold text-white">ZAR {Math.round(grandTotal).toLocaleString()}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-white/60">{tasks.filter(t => t.status !== 'CANCELLED').length} tasks</p>
+                  <p className="text-xs text-white/60">{properties.length} properties</p>
+                </div>
+              </div>
+            )}
+
+            {propStats.map(({ prop, upcoming, totalCost, pendingCount, completedCount, assignedCleaner, totalTasks }) => (
+              <div key={prop.id} className="bg-white rounded-xl border border-gray-100 overflow-hidden" style={{ boxShadow: 'var(--shadow)' }}>
+                {/* Property header */}
+                <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-3 h-8 rounded-sm flex-shrink-0" style={{ backgroundColor: propColor(prop.id) }} />
+                    <div>
+                      <p className="text-sm font-bold text-navy">{prop.unitNumber ?? prop.name}</p>
+                      <p className="text-xs text-gray-400">
+                        {assignedCleaner ? `Cleaner: ${assignedCleaner.name}` : 'No cleaner assigned'}
+                        {assignedCleaner?.payRate ? ` · ZAR ${assignedCleaner.payRate}/clean` : ''}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-base font-bold text-green-600">ZAR {Math.round(totalCost).toLocaleString()}</p>
+                    <p className="text-[10px] text-gray-400">{totalTasks} tasks · {pendingCount} pending · {completedCount} done</p>
+                  </div>
+                </div>
+
+                {/* Upcoming tasks list */}
+                {upcoming.length === 0 ? (
+                  <div className="px-5 py-4 text-xs text-gray-400 italic">No upcoming cleans scheduled</div>
+                ) : (
+                  <div className="divide-y divide-gray-50">
+                    {upcoming.slice(0, 5).map(t => (
+                      <div key={t.id} className="px-5 py-3 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="text-center w-10 flex-shrink-0">
+                            <p className="text-[10px] text-gray-400 leading-none">{new Date(t.scheduledAt).toLocaleDateString('en-ZA', { month: 'short' })}</p>
+                            <p className="text-lg font-bold text-navy leading-tight">{new Date(t.scheduledAt).getDate()}</p>
+                            <p className="text-[10px] text-gray-400 leading-none">{new Date(t.scheduledAt).toLocaleDateString('en-ZA', { weekday: 'short' })}</p>
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <StatusBadge status={t.status} />
+                              {t.priority === 'URGENT' && <PriorityBadge priority={t.priority} />}
+                            </div>
+                            {t.cleaner && <p className="text-xs text-gray-500 mt-0.5">{t.cleaner.name}</p>}
+                            {t.booking && <p className="text-[10px] text-gray-400">{t.booking.guestName} checkout</p>}
+                          </div>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          {t.payAmount ? (
+                            <p className="text-sm font-semibold text-green-600">ZAR {Math.round(t.payAmount).toLocaleString()}</p>
+                          ) : (
+                            <p className="text-xs text-gray-300">—</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    {upcoming.length > 5 && (
+                      <div className="px-5 py-2 text-xs text-gray-400">+{upcoming.length - 5} more upcoming cleans</div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        );
+      })()}
 
       {/* Modals */}
       {showNewTask && (
