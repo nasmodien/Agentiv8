@@ -830,7 +830,6 @@ export default function CleaningPage() {
         const propColor = (id: string) => PROP_COLORS[propIds.indexOf(id) % PROP_COLORS.length];
 
         const getTasksForDay = (day: number) => {
-          const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
           return tasks.filter(t => {
             const d = new Date(t.scheduledAt);
             return d.getFullYear() === year && d.getMonth() === month && d.getDate() === day;
