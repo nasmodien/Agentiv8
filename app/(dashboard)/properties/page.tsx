@@ -1,7 +1,11 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Home, Plus, Wifi, Car, Clock, Users, Search, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react';
+import {
+  Home, Plus, RefreshCw, CheckCircle, AlertCircle, Search,
+  Eye, X, Users, BedDouble, DoorOpen, Wifi, MapPin, Star,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface Property {
   id: string;
@@ -10,34 +14,390 @@ interface Property {
   address: string | null;
   wifiNetwork: string | null;
   wifiPassword: string | null;
-  parkingSpot: string | null;
-  parkingCode: string | null;
   checkInTime: string | null;
   checkOutTime: string | null;
-  bookings: { guestName: string; checkIn: string; checkOut: string; status: string }[];
+  bookings: { channel: string }[];
+  _count?: { bookings: number };
 }
 
 type SyncState = 'idle' | 'syncing' | 'success' | 'error';
 
+// Channel badge config
+const CHANNEL_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
+  AIRBNB:      { label: 'A', bg: 'bg-[#ff5a5f]',  text: 'text-white' },
+  BOOKING_COM: { label: 'B', bg: 'bg-[#003580]',  text: 'text-white' },
+  DIRECT:      { label: 'D', bg: 'bg-green-500',   text: 'text-white' },
+  WHATSAPP:    { label: 'W', bg: 'bg-[#25D366]',   text: 'text-white' },
+};
+
+function ChannelDots({ bookings }: { bookings: { channel: string }[] }) {
+  const channels = [...new Set(bookings.map((b) => b.channel))];
+  if (channels.length === 0) return <span className="text-xs text-gray-400">—</span>;
+  return (
+    <div className="flex gap-1">
+      {channels.map((ch) => {
+        const cfg = CHANNEL_CONFIG[ch] ?? { label: ch[0], bg: 'bg-gray-400', text: 'text-white' };
+        return (
+          <span
+            key={ch}
+            className={cn('w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold', cfg.bg, cfg.text)}
+            title={ch}
+          >
+            {cfg.label}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── DETAIL MODAL ───────────────────────────────────────────────────────────
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function DetailRow({ label, value }: { label: string; value: any }) {
+  if (value == null || value === '' || value === false) return (
+    <div className="flex gap-2 text-xs">
+      <span className="text-blue-600 min-w-[180px]">{label}:</span>
+      <span className="text-gray-400">-</span>
+    </div>
+  );
+  return (
+    <div className="flex gap-2 text-xs">
+      <span className="text-blue-600 min-w-[180px]">{label}:</span>
+      <span className="font-semibold text-gray-800">{String(value)}</span>
+    </div>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="border-t border-gray-200 pt-5">
+      <h3 className="text-base font-semibold text-navy mb-4">{title}</h3>
+      {children}
+    </div>
+  );
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function TwoColGrid({ items }: { items: { label: string; value: any }[] }) {
+  const mid = Math.ceil(items.length / 2);
+  const left = items.slice(0, mid);
+  const right = items.slice(mid);
+  return (
+    <div className="grid grid-cols-2 gap-x-10 gap-y-2">
+      <div className="space-y-2">{left.map((i) => <DetailRow key={i.label} label={i.label} value={i.value} />)}</div>
+      <div className="space-y-2">{right.map((i) => <DetailRow key={i.label} label={i.label} value={i.value} />)}</div>
+    </div>
+  );
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function PropertyDetailModal({ property, onClose }: { property: Property; onClose: () => void }) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [listing, setListing] = useState<any>(null);
+  const [loadingDetail, setLoadingDetail] = useState(true);
+  const [detailError, setDetailError] = useState('');
+
+  useEffect(() => {
+    setLoadingDetail(true);
+    fetch(`/api/hostaway/listings/${property.id}?orgId=default`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.error) setDetailError(d.error);
+        else setListing(d.listing);
+      })
+      .catch(() => setDetailError('Failed to load listing details'))
+      .finally(() => setLoadingDetail(false));
+  }, [property.id]);
+
+  const val = (v: unknown) => (v != null && v !== '' ? v : null);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-end bg-black/40" onClick={onClose}>
+      <div
+        className="relative h-full w-full max-w-3xl bg-white shadow-2xl overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Close */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 z-10 p-1.5 rounded-lg hover:bg-gray-100 text-gray-500"
+        >
+          <X size={18} />
+        </button>
+
+        {/* Header */}
+        <div className="px-8 pt-8 pb-5 border-b border-gray-100">
+          <div className="flex items-center gap-3 mb-1">
+            <div className="w-10 h-10 rounded-xl bg-navy flex items-center justify-center flex-shrink-0">
+              <Home size={20} className="text-white" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-navy">
+                {property.unitNumber ?? property.name}
+                <span className="text-gray-400 font-normal text-base ml-2">({property.id})</span>
+              </h2>
+              {property.address && (
+                <p className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
+                  <MapPin size={11} /> {property.address}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Quick stats from listing */}
+          {listing && (
+            <div className="grid grid-cols-4 gap-4 mt-5">
+              {[
+                { icon: Home,     label: listing.propertyType ?? listing.roomType ?? 'entire_home' },
+                { icon: Users,    label: `${listing.personCapacity ?? '—'} Guests` },
+                { icon: DoorOpen, label: `${listing.bedroomsNumber ?? '—'} Bedrooms` },
+                { icon: BedDouble,label: `${listing.bedsNumber ?? '—'} Beds` },
+              ].map((s) => (
+                <div key={s.label} className="flex flex-col items-center gap-1 py-3 border border-gray-100 rounded-xl">
+                  <s.icon size={22} className="text-gray-400" />
+                  <span className="text-xs text-gray-600 text-center">{s.label}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="px-8 py-6 space-y-6">
+          {loadingDetail && (
+            <div className="flex items-center justify-center py-12 text-gray-400">
+              <RefreshCw size={18} className="animate-spin mr-2" /> Loading listing details…
+            </div>
+          )}
+
+          {detailError && !loadingDetail && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-700">
+              <p className="font-semibold mb-1">Could not load full listing details</p>
+              <p>{detailError}</p>
+              <p className="mt-2 text-xs text-gray-500">Showing data available locally.</p>
+            </div>
+          )}
+
+          {/* Fallback local data when Hostaway unavailable */}
+          {!listing && !loadingDetail && (
+            <Section title="Property Info">
+              <TwoColGrid items={[
+                { label: 'Wi-Fi Network',   value: val(property.wifiNetwork) },
+                { label: 'Wi-Fi Password',  value: val(property.wifiPassword) },
+                { label: 'Check-in Time',   value: val(property.checkInTime) },
+                { label: 'Check-out Time',  value: val(property.checkOutTime) },
+              ]} />
+            </Section>
+          )}
+
+          {listing && !loadingDetail && (
+            <>
+              {/* About */}
+              {listing.description && (
+                <Section title="About this listing">
+                  <p className="text-xs text-gray-600 leading-relaxed">{listing.description}</p>
+                </Section>
+              )}
+
+              {/* The space */}
+              <Section title="The space">
+                <TwoColGrid items={[
+                  { label: 'Accommodates',    value: val(listing.personCapacity) },
+                  { label: 'Bathrooms',       value: val(listing.bathroomsNumber) },
+                  { label: 'Bathroom type',   value: val(listing.bathroomType) },
+                  { label: 'Bedrooms',        value: val(listing.bedroomsNumber) },
+                  { label: 'Bed type',        value: val(listing.bedType) },
+                  { label: 'Beds',            value: val(listing.bedsNumber) },
+                  { label: 'Property type',   value: val(listing.propertyType) },
+                  { label: 'Room type',       value: val(listing.roomType) },
+                  { label: 'Tags',            value: val(Array.isArray(listing.tags) ? listing.tags.join(', ') : listing.tags) },
+                ]} />
+              </Section>
+
+              {/* Additional info – cancellation policies */}
+              {(listing.cancellationPolicy || listing.cancellationPolicies) && (
+                <Section title="Additional info">
+                  <div className="grid grid-cols-2 gap-x-10 gap-y-4">
+                    {listing.cancellationPolicy && (
+                      <div className="text-xs">
+                        <p className="flex items-center gap-1 font-semibold text-[#ff5a5f] mb-0.5">
+                          <span className="w-3 h-3 rounded-full bg-[#ff5a5f] inline-block" />
+                          Airbnb cancellation policy:
+                        </p>
+                        <p className="text-gray-700">{listing.cancellationPolicy}</p>
+                      </div>
+                    )}
+                    {listing.cancellationPolicyLongterm && (
+                      <div className="text-xs">
+                        <p className="flex items-center gap-1 font-semibold text-[#ff5a5f] mb-0.5">
+                          <span className="w-3 h-3 rounded-full bg-[#ff5a5f] inline-block" />
+                          Airbnb long-term cancellation policy:
+                        </p>
+                        <p className="text-gray-700">{listing.cancellationPolicyLongterm}</p>
+                      </div>
+                    )}
+                    {listing.bookingComCancellationPolicy && (
+                      <div className="text-xs">
+                        <p className="flex items-center gap-1 font-semibold text-[#003580] mb-0.5">
+                          <span className="w-3 h-3 rounded-full bg-[#003580] inline-block" />
+                          Booking.com cancellation policy:
+                        </p>
+                        <p className="text-gray-700">{listing.bookingComCancellationPolicy}</p>
+                      </div>
+                    )}
+                    {listing.directCancellationPolicy && (
+                      <div className="text-xs">
+                        <p className="flex items-center gap-1 font-semibold text-green-600 mb-0.5">
+                          <span className="w-3 h-3 rounded-full bg-green-500 inline-block" />
+                          Direct channels cancellation policy:
+                        </p>
+                        <p className="text-gray-700">{listing.directCancellationPolicy}</p>
+                      </div>
+                    )}
+                  </div>
+                </Section>
+              )}
+
+              {/* Amenities */}
+              {listing.amenities?.length > 0 && (
+                <Section title="Amenities">
+                  <div className="grid grid-cols-2 gap-x-10 gap-y-1">
+                    {(listing.amenities as string[]).map((a: string) => (
+                      <span key={a} className="text-xs text-blue-600">{a}</span>
+                    ))}
+                  </div>
+                </Section>
+              )}
+
+              {/* Bed types */}
+              <Section title="Bed types">
+                {listing.bedTypes ? (
+                  <p className="text-xs text-gray-600">{typeof listing.bedTypes === 'object' ? JSON.stringify(listing.bedTypes) : listing.bedTypes}</p>
+                ) : (
+                  <p className="text-xs text-gray-400">-</p>
+                )}
+              </Section>
+
+              {/* House rules */}
+              <Section title="House rules">
+                {listing.houseRules ? (
+                  <p className="text-xs text-gray-600 leading-relaxed">{listing.houseRules}</p>
+                ) : (
+                  <p className="text-xs text-gray-400">-</p>
+                )}
+              </Section>
+
+              {/* Special instructions */}
+              <Section title="Special Instructions">
+                {listing.specialInstructions ?? listing.checkInInstructions ? (
+                  <p className="text-xs text-gray-600 leading-relaxed">{listing.specialInstructions ?? listing.checkInInstructions}</p>
+                ) : (
+                  <p className="text-xs text-gray-400">-</p>
+                )}
+              </Section>
+
+              {/* Prices */}
+              <Section title="Prices">
+                <TwoColGrid items={[
+                  { label: 'Price',                        value: listing.price != null ? `${listing.price} ZAR` : null },
+                  { label: 'Price for extra person',       value: val(listing.priceForExtraPerson) },
+                  { label: 'Weekly discount',              value: val(listing.weeklyDiscount) },
+                  { label: 'Property rent tax %',          value: val(listing.propertyRentTax) },
+                  { label: 'Apply price for extra person for each guest after', value: val(listing.extraPersonFeeGuestsIncluded) },
+                  { label: 'Fixed guest tax per-person, per-night', value: val(listing.guestTaxPerPersonPerNight) },
+                  { label: 'Fixed tax per reservation',   value: val(listing.fixedTaxAmount) },
+                  { label: 'Monthly discount',             value: val(listing.monthlyDiscount) },
+                  { label: 'Fixed nightly tax',            value: val(listing.fixedNightlyTax) },
+                  { label: 'Refundable damage deposit fee',value: val(listing.securityDepositFee) },
+                ]} />
+              </Section>
+
+              {/* License info */}
+              <Section title="License info">
+                <TwoColGrid items={[
+                  { label: 'Property license number',      value: val(listing.licenseNumber) },
+                  { label: 'Property license issue date',  value: val(listing.licenseIssueDate) },
+                  { label: 'Property license type',        value: val(listing.licenseType) },
+                  { label: 'Property license expiration date', value: val(listing.licenseExpirationDate) },
+                ]} />
+              </Section>
+
+              {/* Availability */}
+              <Section title="Availability">
+                <div className="flex items-center gap-6 text-xs text-gray-700">
+                  <span><strong>{listing.minNights ?? 1} nights</strong> minimum</span>
+                  {listing.maxNights && <span><strong>{listing.maxNights} nights</strong> maximum</span>}
+                </div>
+              </Section>
+
+              {/* Other attributes */}
+              <Section title="Other attributes">
+                <TwoColGrid items={[
+                  { label: 'Door code',                    value: val(listing.doorCode) },
+                  { label: 'Checkout time',                value: val(listing.checkOutTime != null ? `${listing.checkOutTime}:00` : property.checkOutTime) },
+                  { label: 'Star rating',                  value: val(listing.starRating) },
+                  { label: 'Cleaning fee',                 value: val(listing.cleaningFee) },
+                  { label: 'Instant bookable',             value: listing.instantBookingAllowed != null ? (listing.instantBookingAllowed ? 'Yes' : 'No') : null },
+                  { label: 'Key pickup',                   value: val(listing.keyPickup) },
+                  { label: 'Instant bookable lead',        value: val(listing.instantBookingLeadTime) },
+                  { label: 'Square Meters',                value: val(listing.squareMeters) },
+                  { label: 'Wi-fi Username',               value: val(listing.wifiName ?? property.wifiNetwork) },
+                  { label: "Listing's cleanness status",   value: val(listing.cleannessStatus) },
+                  { label: 'Wi-fi Password',               value: val(listing.wifiPassword ?? property.wifiPassword) },
+                  { label: "Mark cleanness status as dirty after guest's departure", value: listing.markDirtyAfterCheckout != null ? (listing.markDirtyAfterCheckout ? 'Yes' : 'No') : null },
+                  { label: 'Person Capacity',              value: val(listing.personCapacity) },
+                  { label: 'Cleaning instruction',         value: val(listing.cleaningInstruction) },
+                  { label: 'Checkin time start',           value: listing.checkInTimeStart != null ? `${listing.checkInTimeStart}:00` : val(property.checkInTime) },
+                  { label: 'Checkin time end',             value: listing.checkInTimeEnd != null ? `${listing.checkInTimeEnd}:00` : null },
+                ]} />
+              </Section>
+
+              {/* Contacts */}
+              {(listing.contactName ?? listing.contactEmail ?? listing.contactPhone) && (
+                <Section title="Contacts">
+                  <TwoColGrid items={[
+                    { label: "Contact person's name",            value: val(listing.contactName) },
+                    { label: "Contact person's spoken language", value: val(listing.contactLanguage) },
+                    { label: "Contact person's last name",       value: val(listing.contactLastName) },
+                    { label: "Contact person's email",           value: val(listing.contactEmail) },
+                    { label: 'Phone number',                     value: val(listing.contactPhone) },
+                    { label: "Contact person's address",         value: val(listing.contactAddress) },
+                    { label: 'Second phone number',              value: val(listing.contactPhone2) },
+                  ]} />
+                </Section>
+              )}
+
+              {/* Wifi (always show) */}
+              <Section title="Access & WiFi">
+                <TwoColGrid items={[
+                  { label: 'Wi-Fi Network',  value: val(listing.wifiName ?? property.wifiNetwork) },
+                  { label: 'Wi-Fi Password', value: val(listing.wifiPassword ?? property.wifiPassword) },
+                  { label: 'Check-in Time',  value: listing.checkInTimeStart != null ? `${listing.checkInTimeStart}:00` : val(property.checkInTime) },
+                  { label: 'Check-out Time', value: listing.checkOutTime != null ? `${listing.checkOutTime}:00` : val(property.checkOutTime) },
+                ]} />
+              </Section>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── MAIN PAGE ───────────────────────────────────────────────────────────────
 export default function PropertiesPage() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [syncState, setSyncState] = useState<SyncState>('idle');
   const [syncMessage, setSyncMessage] = useState('');
+  const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
 
   const fetchProperties = useCallback(async () => {
     try {
       const res = await fetch('/api/properties?orgId=default');
       const data = await res.json();
-      if (data.properties?.length > 0) {
-        setProperties(data.properties);
-      }
-    } catch {
-      // keep existing state
-    } finally {
-      setLoading(false);
-    }
+      if (data.properties?.length > 0) setProperties(data.properties);
+    } catch { /* keep existing */ } finally { setLoading(false); }
   }, []);
 
   useEffect(() => { fetchProperties(); }, [fetchProperties]);
@@ -48,18 +408,10 @@ export default function PropertiesPage() {
     try {
       const res = await fetch('/api/hostaway/sync?orgId=default&type=all');
       const data = await res.json();
-
-      if (!res.ok) {
-        setSyncState('error');
-        setSyncMessage(data.error ?? 'Sync failed');
-        return;
-      }
-
+      if (!res.ok) { setSyncState('error'); setSyncMessage(data.error ?? 'Sync failed'); return; }
       const { listings, reservations, messages } = data.results ?? {};
       setSyncState('success');
-      setSyncMessage(
-        `Synced ${listings?.synced ?? 0} properties, ${reservations?.synced ?? 0} bookings, and ${messages?.synced ?? 0} messages from Hostaway`
-      );
+      setSyncMessage(`Synced ${listings?.synced ?? 0} properties, ${reservations?.synced ?? 0} bookings, and ${messages?.synced ?? 0} messages`);
       await fetchProperties();
       setTimeout(() => setSyncState('idle'), 5000);
     } catch {
@@ -68,18 +420,14 @@ export default function PropertiesPage() {
     }
   };
 
-  const filtered = properties.filter(
-    (p) =>
-      (p.unitNumber ?? '').toLowerCase().includes(search.toLowerCase()) ||
-      (p.address ?? '').toLowerCase().includes(search.toLowerCase()) ||
-      (p.name ?? '').toLowerCase().includes(search.toLowerCase())
+  const filtered = properties.filter((p) =>
+    (p.unitNumber ?? '').toLowerCase().includes(search.toLowerCase()) ||
+    (p.address ?? '').toLowerCase().includes(search.toLowerCase()) ||
+    (p.name ?? '').toLowerCase().includes(search.toLowerCase())
   );
 
-  const currentGuest = (p: Property) =>
-    p.bookings?.find((b) => b.status === 'CONFIRMED' || b.status === 'CHECKED_IN');
-
   return (
-    <div className="max-w-5xl mx-auto space-y-5 p-6">
+    <div className="max-w-7xl mx-auto space-y-5 p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -89,7 +437,7 @@ export default function PropertiesPage() {
           <div>
             <h1 className="text-xl font-bold text-navy">Properties</h1>
             <p className="text-sm text-gray-500">
-              {properties.length > 0 ? `${properties.length} properties synced from Hostaway` : 'Sync your Hostaway listings'}
+              {properties.length > 0 ? `${properties.length} properties` : 'Sync your Hostaway listings'}
             </p>
           </div>
         </div>
@@ -103,152 +451,121 @@ export default function PropertiesPage() {
             {syncState === 'syncing' ? 'Syncing...' : 'Sync from Hostaway'}
           </button>
           <button className="flex items-center gap-2 bg-white border border-gray-200 text-gray-600 text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors">
-            <Plus size={14} />
-            Add Manual
+            <Plus size={14} /> Add Manual
           </button>
         </div>
       </div>
 
-      {/* Sync status message */}
+      {/* Sync status */}
       {syncState === 'success' && (
         <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green text-sm font-medium px-4 py-3 rounded-lg">
-          <CheckCircle size={15} />
-          {syncMessage}
+          <CheckCircle size={15} /> {syncMessage}
         </div>
       )}
       {syncState === 'error' && (
         <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red text-sm font-medium px-4 py-3 rounded-lg">
-          <AlertCircle size={15} />
-          {syncMessage}
+          <AlertCircle size={15} /> {syncMessage}
         </div>
       )}
 
-      {/* No credentials warning */}
+      {/* No credentials */}
       {!loading && properties.length === 0 && syncState === 'idle' && (
         <div className="bg-blue-subtle border border-blue/20 rounded-lg px-5 py-4 text-sm text-navy">
           <p className="font-semibold mb-1">Connect Hostaway to get started</p>
           <p className="text-gray-500">
-            Go to <a href="/settings" className="text-blue font-medium hover:underline">Settings</a> → Hostaway Integration → enter your Account ID and API Key → Save. Then click <strong>Sync from Hostaway</strong>.
+            Go to <a href="/settings" className="text-blue font-medium hover:underline">Settings</a> → Integrations → enter your Hostaway Account ID and API Key → Save, then click <strong>Sync from Hostaway</strong>.
           </p>
         </div>
       )}
 
       {/* Search */}
       {properties.length > 0 && (
-        <div className="relative">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <div className="relative max-w-xs">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search properties..."
-            className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:border-blue-light"
+            placeholder="Search listings..."
+            className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:border-blue-light"
           />
-        </div>
-      )}
-
-      {/* Stats */}
-      {properties.length > 0 && (
-        <div className="grid grid-cols-4 gap-4">
-          {[
-            { label: 'Total Properties', value: properties.length, color: 'text-navy' },
-            { label: 'Occupied', value: properties.filter(p => currentGuest(p)?.status === 'CHECKED_IN').length, color: 'text-green' },
-            { label: 'Confirmed', value: properties.filter(p => currentGuest(p)?.status === 'CONFIRMED').length, color: 'text-blue' },
-            { label: 'Vacant', value: properties.filter(p => !currentGuest(p)).length, color: 'text-gray-400' },
-          ].map((s) => (
-            <div key={s.label} className="bg-white rounded-[10px] border border-gray-200 p-4 text-center" style={{ boxShadow: 'var(--shadow)' }}>
-              <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
-              <p className="text-xs text-gray-500 mt-1">{s.label}</p>
-            </div>
-          ))}
         </div>
       )}
 
       {/* Loading */}
       {loading && (
         <div className="flex items-center justify-center py-16 text-gray-400">
-          <RefreshCw size={20} className="animate-spin mr-2" />
-          Loading properties...
+          <RefreshCw size={20} className="animate-spin mr-2" /> Loading properties...
         </div>
       )}
 
-      {/* Property Cards */}
-      <div className="space-y-3">
-        {filtered.map((property) => {
-          const guest = currentGuest(property);
-          return (
+      {/* Table */}
+      {!loading && filtered.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden" style={{ boxShadow: 'var(--shadow)' }}>
+          {/* Table header */}
+          <div className="grid grid-cols-[2fr_120px_2fr_180px_130px_100px] gap-4 px-5 py-3 border-b border-gray-100 bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+            <span>Listing</span>
+            <span>Listing ID</span>
+            <span>External name</span>
+            <span>Location</span>
+            <span>Channels</span>
+            <span />
+          </div>
+
+          {/* Rows */}
+          {filtered.map((property, idx) => (
             <div
               key={property.id}
-              className="bg-white rounded-[10px] border border-gray-200 p-5 hover:border-gray-300 transition-colors"
-              style={{ boxShadow: 'var(--shadow)' }}
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-blue-subtle flex items-center justify-center flex-shrink-0">
-                    <Home size={18} className="text-blue" />
-                  </div>
-                  <div>
-                    <p className="font-bold text-navy">{property.unitNumber ?? property.name}</p>
-                    <p className="text-xs text-gray-500">{property.address ?? 'No address'}</p>
-                  </div>
-                </div>
-                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                  guest?.status === 'CHECKED_IN' ? 'bg-green-100 text-green-700' :
-                  guest?.status === 'CONFIRMED' ? 'bg-blue-100 text-blue' :
-                  'bg-gray-100 text-gray-500'
-                }`}>
-                  {guest?.status === 'CHECKED_IN' ? 'Occupied' :
-                   guest?.status === 'CONFIRMED' ? 'Arriving' : 'Vacant'}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-x-8 gap-y-2 mb-4">
-                {property.wifiNetwork && (
-                  <div className="flex items-center gap-2 text-xs text-gray-600">
-                    <Wifi size={13} className="text-gray-400" />
-                    <span className="text-gray-400">WiFi:</span>
-                    <span className="font-medium">{property.wifiNetwork} / {property.wifiPassword}</span>
-                  </div>
-                )}
-                {property.parkingSpot && (
-                  <div className="flex items-center gap-2 text-xs text-gray-600">
-                    <Car size={13} className="text-gray-400" />
-                    <span className="text-gray-400">Parking:</span>
-                    <span className="font-medium">Spot #{property.parkingSpot}</span>
-                  </div>
-                )}
-                <div className="flex items-center gap-2 text-xs text-gray-600">
-                  <Clock size={13} className="text-gray-400" />
-                  <span className="text-gray-400">Check-in:</span>
-                  <span className="font-medium">{property.checkInTime ?? '15:00'}</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-gray-600">
-                  <Clock size={13} className="text-gray-400" />
-                  <span className="text-gray-400">Check-out:</span>
-                  <span className="font-medium">{property.checkOutTime ?? '11:00'}</span>
-                </div>
-              </div>
-
-              {guest && (
-                <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                  <div className="flex items-center gap-2">
-                    <Users size={13} className="text-gray-400" />
-                    <span className="text-xs text-gray-600">
-                      <span className="font-semibold text-navy">{guest.guestName}</span>
-                      {' · '}
-                      {new Date(guest.checkIn).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' })}
-                      {' – '}
-                      {new Date(guest.checkOut).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' })}
-                    </span>
-                  </div>
-                  <div className="flex gap-2">
-                    <a href="/messages" className="text-xs text-blue hover:underline font-medium">Message</a>
-                  </div>
-                </div>
+              className={cn(
+                'grid grid-cols-[2fr_120px_2fr_180px_130px_100px] gap-4 px-5 py-4 items-center hover:bg-gray-50 transition-colors',
+                idx !== filtered.length - 1 && 'border-b border-gray-100'
               )}
+            >
+              {/* Listing name */}
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-12 h-10 rounded-lg bg-blue-subtle flex items-center justify-center flex-shrink-0">
+                  <Home size={16} className="text-blue" />
+                </div>
+                <button
+                  onClick={() => setSelectedProperty(property)}
+                  className="text-sm font-medium text-blue hover:underline truncate text-left"
+                >
+                  {property.unitNumber ?? property.name}
+                </button>
+              </div>
+
+              {/* Listing ID */}
+              <span className="text-sm text-gray-600">{property.id}</span>
+
+              {/* External name */}
+              <span className="text-sm text-gray-700 truncate">{property.name}</span>
+
+              {/* Location */}
+              <span className="text-sm text-gray-600 truncate">{property.address ?? '—'}</span>
+
+              {/* Channels */}
+              <ChannelDots bookings={property.bookings ?? []} />
+
+              {/* Action */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setSelectedProperty(property)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-blue/30 text-blue rounded-lg hover:bg-blue-subtle transition-colors"
+                >
+                  <Eye size={12} /> Detail View
+                </button>
+              </div>
             </div>
-          );
-        })}
-      </div>
+          ))}
+        </div>
+      )}
+
+      {/* Detail modal */}
+      {selectedProperty && (
+        <PropertyDetailModal
+          property={selectedProperty}
+          onClose={() => setSelectedProperty(null)}
+        />
+      )}
     </div>
   );
 }
