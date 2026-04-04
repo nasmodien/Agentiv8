@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Bell, User, ChevronDown, X } from 'lucide-react';
+import { Bell, User, ChevronDown } from 'lucide-react';
 
 interface Property { id: string; name: string; unitNumber: string | null }
 interface Stats { totalProperties: number; bookedProperties: number; checkInsToday: number; escalations: number }

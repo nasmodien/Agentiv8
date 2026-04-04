@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Sparkles, Users, ListChecks, DollarSign, Plus, RefreshCw,
-  CheckCircle, Clock, AlertTriangle, ChevronDown, X, Check,
+  CheckCircle, Clock, AlertTriangle, X, Check,
   Trash2, Phone, Mail, Edit2, Calendar,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -68,10 +68,6 @@ function PriorityBadge({ priority }: { priority: string }) {
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short' });
 }
-function fmtTime(iso: string) {
-  return new Date(iso).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' });
-}
-
 // ─── TASK CARD ─────────────────────────────────────────────────────────────
 function TaskCard({
   task, onStatusChange, onDelete,

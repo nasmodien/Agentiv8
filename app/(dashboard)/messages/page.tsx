@@ -110,7 +110,6 @@ export default function MessagesPage() {
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   // Mobile: 'list' | 'chat' | 'info'
   const [mobilePanel, setMobilePanel] = useState<'list' | 'chat' | 'info'>('list');
-  const [showMobileInfo, setShowMobileInfo] = useState(false);
   const [activeChannel, setActiveChannel] = useState<Channel>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedPropertyId, setSelectedPropertyId] = useState<string>('all');
