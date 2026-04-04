@@ -22,125 +22,41 @@ interface Property {
 
 type SyncState = 'idle' | 'syncing' | 'success' | 'error';
 
-// Normalise any Hostaway channel name string to a canonical key
-function normaliseChannel(raw: string): string {
-  const s = raw.toLowerCase().replace(/[\s._-]/g, '');
-  if (s.includes('airbnb'))    return 'airbnb';
-  if (s.includes('booking'))   return 'booking';
-  if (s.includes('vrbo'))      return 'vrbo';
-  if (s.includes('homeaway'))  return 'homeaway';
-  if (s.includes('expedia'))   return 'expedia';
-  if (s.includes('tripadvisor') || s.includes('flipkey')) return 'tripadvisor';
-  if (s.includes('google'))    return 'google';
-  if (s.includes('wotif'))     return 'wotif';
-  if (s.includes('agoda'))     return 'agoda';
-  if (s.includes('whatsapp'))  return 'whatsapp';
-  if (s.includes('direct') || s.includes('website') || s.includes('manual')) return 'direct';
-  return s;
-}
 
-// Brand icon SVGs — each returns a 28×28 circle that matches the real logo style
-function ChannelIcon({ channel }: { channel: string }) {
-  const label = channel.charAt(0).toUpperCase() + channel.slice(1);
-  const icons: Record<string, JSX.Element> = {
-    airbnb: (
-      <svg viewBox="0 0 28 28" width="28" height="28">
-        <title>Airbnb</title>
-        <circle cx="14" cy="14" r="14" fill="#FF5A5F"/>
-        <path d="M14 5.5c-1.1 0-2 .9-2 2 0 .75.41 1.4 1.02 1.75C11.2 10.43 9.5 12.8 9.5 14c0 1.38.9 2.5 2 2.5.55 0 1.05-.22 1.42-.58C13.24 17.32 13.62 19 14 19.5c.38-.5.76-2.18 1.08-3.58.37.36.87.58 1.42.58 1.1 0 2-1.12 2-2.5 0-1.2-1.7-3.57-3.52-4.75.61-.35 1.02-1 1.02-1.75 0-1.1-.9-2-2-2z" fill="white" opacity="0.95"/>
-      </svg>
-    ),
-    booking: (
-      <svg viewBox="0 0 28 28" width="28" height="28">
-        <title>Booking.com</title>
-        <circle cx="14" cy="14" r="14" fill="#003580"/>
-        <text x="14" y="19" textAnchor="middle" fill="white" fontSize="13" fontWeight="bold" fontFamily="Arial,sans-serif">B.</text>
-      </svg>
-    ),
-    vrbo: (
-      <svg viewBox="0 0 28 28" width="28" height="28">
-        <title>VRBO</title>
-        <circle cx="14" cy="14" r="14" fill="#1158A7"/>
-        <text x="14" y="18.5" textAnchor="middle" fill="white" fontSize="9" fontWeight="bold" fontFamily="Arial,sans-serif">VRBO</text>
-      </svg>
-    ),
-    homeaway: (
-      <svg viewBox="0 0 28 28" width="28" height="28">
-        <title>HomeAway</title>
-        <circle cx="14" cy="14" r="14" fill="#1158A7"/>
-        <text x="14" y="19" textAnchor="middle" fill="white" fontSize="13" fontWeight="bold" fontFamily="Arial,sans-serif">H</text>
-      </svg>
-    ),
-    expedia: (
-      <svg viewBox="0 0 28 28" width="28" height="28">
-        <title>Expedia</title>
-        <circle cx="14" cy="14" r="14" fill="#FFC72C"/>
-        <text x="14" y="19" textAnchor="middle" fill="white" fontSize="13" fontWeight="bold" fontFamily="Arial,sans-serif">E</text>
-      </svg>
-    ),
-    google: (
-      <svg viewBox="0 0 28 28" width="28" height="28">
-        <title>Google</title>
-        <circle cx="14" cy="14" r="14" fill="#4285F4"/>
-        <text x="14" y="19" textAnchor="middle" fill="white" fontSize="13" fontWeight="bold" fontFamily="Arial,sans-serif">G</text>
-      </svg>
-    ),
-    tripadvisor: (
-      <svg viewBox="0 0 28 28" width="28" height="28">
-        <title>TripAdvisor</title>
-        <circle cx="14" cy="14" r="14" fill="#00AA6C"/>
-        <text x="14" y="19" textAnchor="middle" fill="white" fontSize="13" fontWeight="bold" fontFamily="Arial,sans-serif">T</text>
-      </svg>
-    ),
-    wotif: (
-      <svg viewBox="0 0 28 28" width="28" height="28">
-        <title>Wotif</title>
-        <circle cx="14" cy="14" r="14" fill="#F59E0B"/>
-        <text x="14" y="19" textAnchor="middle" fill="white" fontSize="13" fontWeight="bold" fontFamily="Arial,sans-serif">W</text>
-      </svg>
-    ),
-    agoda: (
-      <svg viewBox="0 0 28 28" width="28" height="28">
-        <title>Agoda</title>
-        <circle cx="14" cy="14" r="14" fill="#5C328A"/>
-        <text x="14" y="19" textAnchor="middle" fill="white" fontSize="13" fontWeight="bold" fontFamily="Arial,sans-serif">A</text>
-      </svg>
-    ),
-    whatsapp: (
-      <svg viewBox="0 0 28 28" width="28" height="28">
-        <title>WhatsApp</title>
-        <circle cx="14" cy="14" r="14" fill="#25D366"/>
-        <text x="14" y="19" textAnchor="middle" fill="white" fontSize="13" fontWeight="bold" fontFamily="Arial,sans-serif">W</text>
-      </svg>
-    ),
-    direct: (
-      <svg viewBox="0 0 28 28" width="28" height="28">
-        <title>Direct</title>
-        <circle cx="14" cy="14" r="14" fill="#6B7280"/>
-        <text x="14" y="19" textAnchor="middle" fill="white" fontSize="13" fontWeight="bold" fontFamily="Arial,sans-serif">D</text>
-      </svg>
-    ),
-  };
-
-  return icons[channel] ?? (
-    <svg viewBox="0 0 28 28" width="28" height="28">
-      <title>{label}</title>
-      <circle cx="14" cy="14" r="14" fill="#9CA3AF"/>
-      <text x="14" y="19" textAnchor="middle" fill="white" fontSize="13" fontWeight="bold" fontFamily="Arial,sans-serif">{label[0]}</text>
-    </svg>
-  );
-}
+const CHANNEL_BADGE: Record<string, { label: string; bg: string }> = {
+  airbnb:      { label: 'A',    bg: '#FF5A5F' },
+  booking:     { label: 'B.',   bg: '#003580' },
+  vrbo:        { label: 'V',    bg: '#1158A7' },
+  homeaway:    { label: 'H',    bg: '#1158A7' },
+  expedia:     { label: 'E',    bg: '#FFC72C' },
+  google:      { label: 'G',    bg: '#4285F4' },
+  tripadvisor: { label: 'T',    bg: '#00AA6C' },
+  wotif:       { label: 'W',    bg: '#F59E0B' },
+  agoda:       { label: 'Ag',   bg: '#5C328A' },
+  whatsapp:    { label: 'W',    bg: '#25D366' },
+  hotelbeds:   { label: 'Hb',   bg: '#E25C1A' },
+  marriott:    { label: 'M',    bg: '#8B0000' },
+  direct:      { label: 'D',    bg: '#6B7280' },
+};
 
 function ChannelDots({ channels }: { channels: string[] }) {
   if (channels.length === 0) return <span className="text-xs text-gray-400">—</span>;
-  const unique = Array.from(new Set(channels.map(normaliseChannel)));
+  const unique = Array.from(new Set(channels));
   return (
     <div className="flex gap-1 flex-wrap">
-      {unique.map((ch) => (
-        <span key={ch} className="flex-shrink-0">
-          <ChannelIcon channel={ch} />
-        </span>
-      ))}
+      {unique.map((ch) => {
+        const cfg = CHANNEL_BADGE[ch] ?? { label: ch.slice(0, 2).toUpperCase(), bg: '#9CA3AF' };
+        return (
+          <span
+            key={ch}
+            title={ch}
+            className="inline-flex items-center justify-center w-7 h-7 rounded-full text-white text-[11px] font-bold flex-shrink-0"
+            style={{ background: cfg.bg }}
+          >
+            {cfg.label}
+          </span>
+        );
+      })}
     </div>
   );
 }
