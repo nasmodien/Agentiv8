@@ -22,31 +22,119 @@ interface Property {
 
 type SyncState = 'idle' | 'syncing' | 'success' | 'error';
 
-// Channel badge config
-const CHANNEL_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
-  AIRBNB:      { label: 'A', bg: 'bg-[#ff5a5f]',  text: 'text-white' },
-  BOOKING_COM: { label: 'B', bg: 'bg-[#003580]',  text: 'text-white' },
-  DIRECT:      { label: 'D', bg: 'bg-green-500',   text: 'text-white' },
-  WHATSAPP:    { label: 'W', bg: 'bg-[#25D366]',   text: 'text-white' },
-};
+// Normalise any Hostaway channel name string to a canonical key
+function normaliseChannel(raw: string): string {
+  const s = raw.toLowerCase().replace(/[\s._-]/g, '');
+  if (s.includes('airbnb'))    return 'airbnb';
+  if (s.includes('booking'))   return 'booking';
+  if (s.includes('vrbo'))      return 'vrbo';
+  if (s.includes('homeaway'))  return 'homeaway';
+  if (s.includes('expedia'))   return 'expedia';
+  if (s.includes('tripadvisor') || s.includes('flipkey')) return 'tripadvisor';
+  if (s.includes('google'))    return 'google';
+  if (s.includes('wotif'))     return 'wotif';
+  if (s.includes('agoda'))     return 'agoda';
+  if (s.includes('whatsapp'))  return 'whatsapp';
+  if (s.includes('direct') || s.includes('website') || s.includes('manual')) return 'direct';
+  return s;
+}
 
-function ChannelDots({ bookings }: { bookings: { channel: string }[] }) {
-  const channels = Array.from(new Set(bookings.map((b) => b.channel)));
+// Brand icon SVGs — each returns a 28×28 circle that matches the real logo style
+function ChannelIcon({ channel, title }: { channel: string; title?: string }) {
+  const icons: Record<string, JSX.Element> = {
+    airbnb: (
+      <svg viewBox="0 0 28 28" width="28" height="28" title={title ?? 'Airbnb'}>
+        <circle cx="14" cy="14" r="14" fill="#FF5A5F"/>
+        {/* Airbnb bélo symbol (simplified) */}
+        <path d="M14 5.5c-1.1 0-2 .9-2 2 0 .75.41 1.4 1.02 1.75C11.2 10.43 9.5 12.8 9.5 14c0 1.38.9 2.5 2 2.5.55 0 1.05-.22 1.42-.58C13.24 17.32 13.62 19 14 19.5c.38-.5.76-2.18 1.08-3.58.37.36.87.58 1.42.58 1.1 0 2-1.12 2-2.5 0-1.2-1.7-3.57-3.52-4.75.61-.35 1.02-1 1.02-1.75 0-1.1-.9-2-2-2z" fill="white" opacity="0.95"/>
+      </svg>
+    ),
+    booking: (
+      <svg viewBox="0 0 28 28" width="28" height="28" title={title ?? 'Booking.com'}>
+        <circle cx="14" cy="14" r="14" fill="#003580"/>
+        <text x="14" y="19" textAnchor="middle" fill="white" fontSize="13" fontWeight="bold" fontFamily="Arial,sans-serif">B.</text>
+      </svg>
+    ),
+    vrbo: (
+      <svg viewBox="0 0 28 28" width="28" height="28" title={title ?? 'VRBO'}>
+        <circle cx="14" cy="14" r="14" fill="#1158A7"/>
+        <text x="14" y="18.5" textAnchor="middle" fill="white" fontSize="9" fontWeight="bold" fontFamily="Arial,sans-serif">VRBO</text>
+      </svg>
+    ),
+    homeaway: (
+      <svg viewBox="0 0 28 28" width="28" height="28" title={title ?? 'HomeAway'}>
+        <circle cx="14" cy="14" r="14" fill="#1158A7"/>
+        <text x="14" y="19" textAnchor="middle" fill="white" fontSize="13" fontWeight="bold" fontFamily="Arial,sans-serif">H</text>
+      </svg>
+    ),
+    expedia: (
+      <svg viewBox="0 0 28 28" width="28" height="28" title={title ?? 'Expedia'}>
+        <circle cx="14" cy="14" r="14" fill="#FFC72C"/>
+        <text x="14" y="19" textAnchor="middle" fill="white" fontSize="13" fontWeight="bold" fontFamily="Arial,sans-serif">E</text>
+      </svg>
+    ),
+    google: (
+      <svg viewBox="0 0 28 28" width="28" height="28" title={title ?? 'Google'}>
+        <circle cx="14" cy="14" r="14" fill="#4285F4"/>
+        <text x="14" y="19" textAnchor="middle" fill="white" fontSize="13" fontWeight="bold" fontFamily="Arial,sans-serif">G</text>
+      </svg>
+    ),
+    tripadvisor: (
+      <svg viewBox="0 0 28 28" width="28" height="28" title={title ?? 'TripAdvisor'}>
+        <circle cx="14" cy="14" r="14" fill="#00AA6C"/>
+        <text x="14" y="19" textAnchor="middle" fill="white" fontSize="13" fontWeight="bold" fontFamily="Arial,sans-serif">T</text>
+      </svg>
+    ),
+    wotif: (
+      <svg viewBox="0 0 28 28" width="28" height="28" title={title ?? 'Wotif'}>
+        <circle cx="14" cy="14" r="14" fill="#F59E0B"/>
+        <text x="14" y="19" textAnchor="middle" fill="white" fontSize="13" fontWeight="bold" fontFamily="Arial,sans-serif">W</text>
+      </svg>
+    ),
+    agoda: (
+      <svg viewBox="0 0 28 28" width="28" height="28" title={title ?? 'Agoda'}>
+        <circle cx="14" cy="14" r="14" fill="#5C328A"/>
+        <text x="14" y="19" textAnchor="middle" fill="white" fontSize="13" fontWeight="bold" fontFamily="Arial,sans-serif">A</text>
+      </svg>
+    ),
+    whatsapp: (
+      <svg viewBox="0 0 28 28" width="28" height="28" title={title ?? 'WhatsApp'}>
+        <circle cx="14" cy="14" r="14" fill="#25D366"/>
+        <text x="14" y="19" textAnchor="middle" fill="white" fontSize="13" fontWeight="bold" fontFamily="Arial,sans-serif">W</text>
+      </svg>
+    ),
+    direct: (
+      <svg viewBox="0 0 28 28" width="28" height="28" title={title ?? 'Direct'}>
+        <circle cx="14" cy="14" r="14" fill="#6B7280"/>
+        <text x="14" y="19" textAnchor="middle" fill="white" fontSize="13" fontWeight="bold" fontFamily="Arial,sans-serif">D</text>
+      </svg>
+    ),
+  };
+
+  const icon = icons[channel];
+  if (!icon) {
+    // Fallback: grey circle with first letter
+    const letter = channel[0]?.toUpperCase() ?? '?';
+    return (
+      <svg viewBox="0 0 28 28" width="28" height="28" title={title ?? channel}>
+        <circle cx="14" cy="14" r="14" fill="#9CA3AF"/>
+        <text x="14" y="19" textAnchor="middle" fill="white" fontSize="13" fontWeight="bold" fontFamily="Arial,sans-serif">{letter}</text>
+      </svg>
+    );
+  }
+  return icon;
+}
+
+function ChannelDots({ channels }: { channels: string[] }) {
   if (channels.length === 0) return <span className="text-xs text-gray-400">—</span>;
+  const unique = Array.from(new Set(channels.map(normaliseChannel)));
   return (
-    <div className="flex gap-1">
-      {channels.map((ch) => {
-        const cfg = CHANNEL_CONFIG[ch] ?? { label: ch[0], bg: 'bg-gray-400', text: 'text-white' };
-        return (
-          <span
-            key={ch}
-            className={cn('w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold', cfg.bg, cfg.text)}
-            title={ch}
-          >
-            {cfg.label}
-          </span>
-        );
-      })}
+    <div className="flex gap-1 flex-wrap">
+      {unique.map((ch) => (
+        <span key={ch} className="flex-shrink-0">
+          <ChannelIcon channel={ch} title={ch} />
+        </span>
+      ))}
     </div>
   );
 }
@@ -386,6 +474,8 @@ function PropertyDetailModal({ property, onClose }: { property: Property; onClos
 // ─── MAIN PAGE ───────────────────────────────────────────────────────────────
 export default function PropertiesPage() {
   const [properties, setProperties] = useState<Property[]>([]);
+  // channelMap: listingId -> normalised channel name list from Hostaway
+  const [channelMap, setChannelMap] = useState<Record<string, string[]>>({});
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [syncState, setSyncState] = useState<SyncState>('idle');
@@ -400,7 +490,19 @@ export default function PropertiesPage() {
     } catch { /* keep existing */ } finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { fetchProperties(); }, [fetchProperties]);
+  // Fetch channel data from Hostaway (best-effort, silent on failure)
+  const fetchChannels = useCallback(async () => {
+    try {
+      const res = await fetch('/api/hostaway/channels?orgId=default');
+      const data = await res.json();
+      if (data.channels) setChannelMap(data.channels);
+    } catch { /* silent */ }
+  }, []);
+
+  useEffect(() => {
+    fetchProperties();
+    fetchChannels();
+  }, [fetchProperties, fetchChannels]);
 
   const handleSync = async () => {
     setSyncState('syncing');
@@ -412,7 +514,7 @@ export default function PropertiesPage() {
       const { listings, reservations, messages } = data.results ?? {};
       setSyncState('success');
       setSyncMessage(`Synced ${listings?.synced ?? 0} properties, ${reservations?.synced ?? 0} bookings, and ${messages?.synced ?? 0} messages`);
-      await fetchProperties();
+      await Promise.all([fetchProperties(), fetchChannels()]);
       setTimeout(() => setSyncState('idle'), 5000);
     } catch {
       setSyncState('error');
@@ -543,7 +645,12 @@ export default function PropertiesPage() {
               <span className="text-sm text-gray-600 truncate">{property.address ?? '—'}</span>
 
               {/* Channels */}
-              <ChannelDots bookings={property.bookings ?? []} />
+              <ChannelDots channels={
+                // Use Hostaway channel data when available; fall back to booking channels
+                (channelMap[property.id]?.length
+                  ? channelMap[property.id]
+                  : (property.bookings ?? []).map((b) => b.channel))
+              } />
 
               {/* Action */}
               <div className="flex items-center gap-2">
