@@ -36,16 +36,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { label: 'Dashboard', href: '/', icon: LayoutDashboard },
-  {
-    label: 'Messages', href: '/messages', icon: MessageSquare, badge: 5,
-    children: [
-      { label: 'All Messages', href: '/messages' },
-      { label: 'Airbnb', href: '/messages?channel=airbnb' },
-      { label: 'Booking.com', href: '/messages?channel=booking' },
-      { label: 'Direct', href: '/messages?channel=direct' },
-      { label: 'WhatsApp', href: '/messages?channel=whatsapp' },
-    ],
-  },
+  { label: 'Messages', href: '/messages', icon: MessageSquare, badge: 5 },
   {
     label: 'Tasks', href: '/tasks', icon: CheckSquare,
     children: [
@@ -55,13 +46,7 @@ const navItems: NavItem[] = [
     ],
   },
   { label: 'Calendar', href: '/calendar', icon: CalendarDays },
-  {
-    label: 'Properties', href: '/properties', icon: Home,
-    children: [
-      { label: 'All Properties', href: '/properties' },
-      { label: 'Add Property', href: '/properties?action=add' },
-    ],
-  },
+  { label: 'Properties', href: '/properties', icon: Home },
   {
     label: 'Concierge', href: '/concierge', icon: Coffee,
     children: [
@@ -104,6 +89,8 @@ const navItems: NavItem[] = [
       { label: 'Integrations', href: '/settings' },
       { label: 'AI Config', href: '/settings?section=ai' },
       { label: 'Notifications', href: '/settings?section=notifications' },
+      { label: 'Authentication', href: '/settings?section=auth' },
+      { label: 'Revenue', href: '/settings?section=revenue' },
     ],
   },
 ];

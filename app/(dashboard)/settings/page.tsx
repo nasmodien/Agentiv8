@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Settings, Key, Bell, Globe, Shield, Webhook, CheckCircle, AlertCircle, Loader2, Percent, Save } from 'lucide-react';
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
@@ -20,7 +21,7 @@ interface Section {
   info?: string;
 }
 
-const sections: Section[] = [
+const integrationSections: Section[] = [
   {
     icon: Globe,
     title: 'Hostaway Integration',
@@ -28,16 +29,6 @@ const sections: Section[] = [
     fields: [
       { label: 'Hostaway Account ID', key: 'HOSTAWAY_ACCOUNT_ID', placeholder: '126626', type: 'text' },
       { label: 'API Key', key: 'HOSTAWAY_API_KEY', placeholder: '••••••••••••••••', type: 'password' },
-    ],
-  },
-  {
-    icon: Key,
-    title: 'AI Configuration',
-    description: 'Configure your AI provider for auto-responses.',
-    fields: [
-      { label: 'Anthropic API Key', key: 'ANTHROPIC_API_KEY', placeholder: 'sk-ant-••••••••', type: 'password' },
-      { label: 'OpenAI API Key (embeddings)', key: 'OPENAI_API_KEY', placeholder: 'sk-••••••••', type: 'password' },
-      { label: 'Confidence Threshold (0–1)', key: 'AI_CONFIDENCE_THRESHOLD', placeholder: '0.75', type: 'text' },
     ],
   },
   {
@@ -50,6 +41,29 @@ const sections: Section[] = [
     ],
   },
   {
+    icon: Webhook,
+    title: 'Webhook URL',
+    description: 'Paste this URL into your Hostaway webhook settings to receive guest messages.',
+    fields: [],
+    info: `${typeof window !== 'undefined' ? window.location.origin : 'https://agentiv8.vercel.app'}/api/webhooks/hostaway`,
+  },
+];
+
+const aiSections: Section[] = [
+  {
+    icon: Key,
+    title: 'AI Configuration',
+    description: 'Configure your AI provider for auto-responses.',
+    fields: [
+      { label: 'Anthropic API Key', key: 'ANTHROPIC_API_KEY', placeholder: 'sk-ant-••••••••', type: 'password' },
+      { label: 'OpenAI API Key (embeddings)', key: 'OPENAI_API_KEY', placeholder: 'sk-••••••••', type: 'password' },
+      { label: 'Confidence Threshold (0–1)', key: 'AI_CONFIDENCE_THRESHOLD', placeholder: '0.75', type: 'text' },
+    ],
+  },
+];
+
+const notificationSections: Section[] = [
+  {
     icon: Bell,
     title: 'Notifications',
     description: 'Configure alerts for escalations and important events.',
@@ -58,6 +72,9 @@ const sections: Section[] = [
       { label: 'SMS Number (Twilio)', key: 'SMS_NUMBER', placeholder: '+27820000000', type: 'text' },
     ],
   },
+];
+
+const authSections: Section[] = [
   {
     icon: Shield,
     title: 'Authentication',
@@ -67,14 +84,14 @@ const sections: Section[] = [
       { label: 'Google OAuth Secret', key: 'GOOGLE_CLIENT_SECRET', placeholder: '••••••••••••••••', type: 'password' },
     ],
   },
-  {
-    icon: Webhook,
-    title: 'Webhook URL',
-    description: 'Paste this URL into your Hostaway webhook settings to receive guest messages.',
-    fields: [],
-    info: `${typeof window !== 'undefined' ? window.location.origin : 'https://agentiv8.vercel.app'}/api/webhooks/hostaway`,
-  },
 ];
+
+const sectionMap: Record<string, { label: string; sections: Section[]; showEnvVars?: boolean }> = {
+  integrations: { label: 'Integrations', sections: integrationSections, showEnvVars: true },
+  ai:           { label: 'AI Config',    sections: aiSections },
+  notifications:{ label: 'Notifications', sections: notificationSections },
+  auth:         { label: 'Authentication', sections: authSections },
+};
 
 function RevenueSettings() {
   const [hostServiceFee, setHostServiceFee] = useState(3);
@@ -179,7 +196,92 @@ function RevenueSettings() {
   );
 }
 
-export default function SettingsPage() {
+function SectionCard({
+  section,
+  values,
+  saveState,
+  onChange,
+  onSave,
+  copied,
+  onCopy,
+}: {
+  section: Section;
+  values: Record<string, string>;
+  saveState: SaveState;
+  onChange: (key: string, val: string) => void;
+  onSave: (section: Section) => void;
+  copied: boolean;
+  onCopy: (url: string) => void;
+}) {
+  const Icon = section.icon;
+  return (
+    <div className="bg-white rounded-[10px] border border-gray-200 overflow-hidden" style={{ boxShadow: 'var(--shadow)' }}>
+      <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-3">
+        <div className="w-8 h-8 rounded-lg bg-blue-subtle flex items-center justify-center">
+          <Icon size={16} className="text-blue" />
+        </div>
+        <div>
+          <p className="font-semibold text-navy text-sm">{section.title}</p>
+          <p className="text-xs text-gray-500">{section.description}</p>
+        </div>
+      </div>
+      <div className="px-5 py-4 space-y-4">
+        {section.info && (
+          <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 flex items-center justify-between gap-3">
+            <code className="text-xs text-blue font-mono break-all">{section.info}</code>
+            <button
+              onClick={() => onCopy(section.info!)}
+              className="text-xs font-medium flex-shrink-0 px-3 py-1.5 rounded-lg border border-gray-200 hover:border-blue text-gray-600 hover:text-blue transition-colors"
+            >
+              {copied ? 'Copied!' : 'Copy'}
+            </button>
+          </div>
+        )}
+        {section.fields.map((field) => (
+          <div key={field.key}>
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">{field.label}</label>
+            <input
+              type={field.type}
+              placeholder={field.placeholder}
+              value={values[field.key] ?? ''}
+              onChange={(e) => onChange(field.key, e.target.value)}
+              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-700 outline-none focus:border-blue-light focus:bg-white transition-colors"
+              autoComplete="off"
+            />
+          </div>
+        ))}
+        {section.fields.length > 0 && (
+          <div className="flex items-center justify-between pt-1">
+            {saveState === 'saved' && (
+              <span className="flex items-center gap-1.5 text-xs text-green font-medium">
+                <CheckCircle size={13} /> Saved successfully
+              </span>
+            )}
+            {saveState === 'error' && (
+              <span className="flex items-center gap-1.5 text-xs text-red font-medium">
+                <AlertCircle size={13} /> Failed to save
+              </span>
+            )}
+            {(saveState === 'idle' || saveState === 'saving') && <span />}
+            <button
+              onClick={() => onSave(section)}
+              disabled={saveState === 'saving'}
+              className="flex items-center gap-2 bg-blue text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-60"
+            >
+              {saveState === 'saving' && <Loader2 size={13} className="animate-spin" />}
+              {saveState === 'saving' ? 'Saving...' : 'Save'}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SettingsPageContent() {
+  const searchParams = useSearchParams();
+  const sectionKey = searchParams.get('section') ?? 'integrations';
+
   const [values, setValues] = useState<Record<string, string>>({});
   const [saveStates, setSaveStates] = useState<Record<string, SaveState>>({});
   const [copied, setCopied] = useState(false);
@@ -187,9 +289,7 @@ export default function SettingsPage() {
   useEffect(() => {
     fetch('/api/settings?orgId=default')
       .then((r) => r.json())
-      .then((data) => {
-        if (data.settings) setValues(data.settings);
-      })
+      .then((data) => { if (data.settings) setValues(data.settings); })
       .catch(() => {});
   }, []);
 
@@ -201,31 +301,26 @@ export default function SettingsPage() {
   };
 
   const handleSave = async (section: Section) => {
-    const sectionKey = section.title;
-    setSaveStates((prev) => ({ ...prev, [sectionKey]: 'saving' }));
-
+    const sectionTitle = section.title;
+    setSaveStates((prev) => ({ ...prev, [sectionTitle]: 'saving' }));
     const settingsToSave: Record<string, string> = {};
     for (const field of section.fields) {
-      if (values[field.key] !== undefined) {
-        settingsToSave[field.key] = values[field.key];
-      }
+      if (values[field.key] !== undefined) settingsToSave[field.key] = values[field.key];
     }
-
     try {
       const res = await fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orgId: 'default', settings: settingsToSave }),
       });
-
       if (res.ok) {
-        setSaveStates((prev) => ({ ...prev, [sectionKey]: 'saved' }));
-        setTimeout(() => setSaveStates((prev) => ({ ...prev, [sectionKey]: 'idle' })), 3000);
+        setSaveStates((prev) => ({ ...prev, [sectionTitle]: 'saved' }));
+        setTimeout(() => setSaveStates((prev) => ({ ...prev, [sectionTitle]: 'idle' })), 3000);
       } else {
-        setSaveStates((prev) => ({ ...prev, [sectionKey]: 'error' }));
+        setSaveStates((prev) => ({ ...prev, [sectionTitle]: 'error' }));
       }
     } catch {
-      setSaveStates((prev) => ({ ...prev, [sectionKey]: 'error' }));
+      setSaveStates((prev) => ({ ...prev, [sectionTitle]: 'error' }));
     }
   };
 
@@ -235,6 +330,8 @@ export default function SettingsPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const current = sectionMap[sectionKey];
+
   return (
     <div className="max-w-3xl mx-auto space-y-6 p-6">
       <div className="flex items-center gap-3">
@@ -242,114 +339,61 @@ export default function SettingsPage() {
           <Settings size={18} className="text-white" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-navy">Settings</h1>
-          <p className="text-sm text-gray-500">Configure integrations, AI, and team settings</p>
+          <h1 className="text-xl font-bold text-navy">{current?.label ?? 'Revenue'}</h1>
+          <p className="text-sm text-gray-500">
+            {sectionKey === 'revenue' ? 'Configure fee percentages and payout formulas' : 'Configure your settings'}
+          </p>
         </div>
       </div>
 
-      <RevenueSettings />
+      {sectionKey === 'revenue' && <RevenueSettings />}
 
-      {sections.map((section) => {
-        const Icon = section.icon;
-        const state = saveStates[section.title] ?? 'idle';
+      {current?.sections.map((section) => (
+        <SectionCard
+          key={section.title}
+          section={section}
+          values={values}
+          saveState={saveStates[section.title] ?? 'idle'}
+          onChange={handleChange}
+          onSave={handleSave}
+          copied={copied}
+          onCopy={copyWebhook}
+        />
+      ))}
 
-        return (
-          <div
-            key={section.title}
-            className="bg-white rounded-[10px] border border-gray-200 overflow-hidden"
-            style={{ boxShadow: 'var(--shadow)' }}
-          >
-            <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-blue-subtle flex items-center justify-center">
-                <Icon size={16} className="text-blue" />
-              </div>
-              <div>
-                <p className="font-semibold text-navy text-sm">{section.title}</p>
-                <p className="text-xs text-gray-500">{section.description}</p>
-              </div>
-            </div>
-
-            <div className="px-5 py-4 space-y-4">
-              {section.info && (
-                <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 flex items-center justify-between gap-3">
-                  <code className="text-xs text-blue font-mono break-all">{section.info}</code>
-                  <button
-                    onClick={() => copyWebhook(section.info!)}
-                    className="text-xs font-medium flex-shrink-0 px-3 py-1.5 rounded-lg border border-gray-200 hover:border-blue text-gray-600 hover:text-blue transition-colors"
-                  >
-                    {copied ? 'Copied!' : 'Copy'}
-                  </button>
-                </div>
-              )}
-
-              {section.fields.map((field) => (
-                <div key={field.key}>
-                  <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                    {field.label}
-                  </label>
-                  <input
-                    type={field.type}
-                    placeholder={field.placeholder}
-                    value={values[field.key] ?? ''}
-                    onChange={(e) => handleChange(field.key, e.target.value)}
-                    className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-700 outline-none focus:border-blue-light focus:bg-white transition-colors"
-                    autoComplete="off"
-                  />
-                </div>
-              ))}
-
-              {section.fields.length > 0 && (
-                <div className="flex items-center justify-between pt-1">
-                  {state === 'saved' && (
-                    <span className="flex items-center gap-1.5 text-xs text-green font-medium">
-                      <CheckCircle size={13} /> Saved successfully
-                    </span>
-                  )}
-                  {state === 'error' && (
-                    <span className="flex items-center gap-1.5 text-xs text-red font-medium">
-                      <AlertCircle size={13} /> Failed to save
-                    </span>
-                  )}
-                  {(state === 'idle' || state === 'saving') && <span />}
-
-                  <button
-                    onClick={() => handleSave(section)}
-                    disabled={state === 'saving'}
-                    className="flex items-center gap-2 bg-blue text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-60"
-                  >
-                    {state === 'saving' && <Loader2 size={13} className="animate-spin" />}
-                    {state === 'saving' ? 'Saving...' : 'Save'}
-                  </button>
-                </div>
-              )}
-            </div>
+      {current?.showEnvVars && (
+        <div
+          className="bg-white rounded-[10px] border border-gray-200 px-5 py-4"
+          style={{ boxShadow: 'var(--shadow)' }}
+        >
+          <p className="font-semibold text-navy text-sm mb-1">Production Environment Variables</p>
+          <p className="text-xs text-gray-500 mb-3">
+            For best security, also set these directly in Vercel → Settings → Environment Variables:
+          </p>
+          <div className="bg-gray-900 rounded-lg p-4 text-xs font-mono text-green-400 space-y-1 overflow-x-auto">
+            {[
+              'DATABASE_URL=postgresql://...',
+              'NEXTAUTH_URL=https://agentiv8.vercel.app',
+              'NEXTAUTH_SECRET=your-secret',
+              'ANTHROPIC_API_KEY=sk-ant-...',
+              'OPENAI_API_KEY=sk-...',
+              'PINECONE_API_KEY=...',
+              'PINECONE_INDEX=agentiv8-kb',
+              'HOSTAWAY_WEBHOOK_SECRET=...',
+            ].map((line) => (
+              <div key={line}>{line}</div>
+            ))}
           </div>
-        );
-      })}
-
-      <div
-        className="bg-white rounded-[10px] border border-gray-200 px-5 py-4"
-        style={{ boxShadow: 'var(--shadow)' }}
-      >
-        <p className="font-semibold text-navy text-sm mb-1">Production Environment Variables</p>
-        <p className="text-xs text-gray-500 mb-3">
-          For best security, also set these directly in Vercel → Settings → Environment Variables:
-        </p>
-        <div className="bg-gray-900 rounded-lg p-4 text-xs font-mono text-green-400 space-y-1 overflow-x-auto">
-          {[
-            'DATABASE_URL=postgresql://...',
-            'NEXTAUTH_URL=https://agentiv8.vercel.app',
-            'NEXTAUTH_SECRET=your-secret',
-            'ANTHROPIC_API_KEY=sk-ant-...',
-            'OPENAI_API_KEY=sk-...',
-            'PINECONE_API_KEY=...',
-            'PINECONE_INDEX=agentiv8-kb',
-            'HOSTAWAY_WEBHOOK_SECRET=...',
-          ].map((line) => (
-            <div key={line}>{line}</div>
-          ))}
         </div>
-      </div>
+      )}
     </div>
+  );
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense>
+      <SettingsPageContent />
+    </Suspense>
   );
 }
