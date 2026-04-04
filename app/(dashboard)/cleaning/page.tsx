@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
-  Sparkles, Users, ListChecks, DollarSign, Plus, RefreshCw,
+  Sparkles, Users, ListChecks, Plus, RefreshCw,
   CheckCircle, Clock, AlertTriangle, X, Check,
-  Trash2, Phone, Mail, Edit2, Calendar, CalendarDays,
-  ChevronLeft, ChevronRight, Zap, Building2,
+  Trash2, Phone, Mail, Edit2, Calendar,
+  ChevronLeft, ChevronRight, Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -429,8 +430,9 @@ function ChecklistModal({
 }
 
 // ─── MAIN PAGE ───────────────────────────────────────────────────────────────
-export default function CleaningPage() {
-  const [tab, setTab] = useState<Tab>('tasks');
+function CleaningPageContent() {
+  const searchParams = useSearchParams();
+  const tab = (searchParams.get('tab') ?? 'tasks') as Tab;
   const [tasks, setTasks] = useState<Task[]>([]);
   const [cleaners, setCleaners] = useState<Cleaner[]>([]);
   const [templates, setTemplates] = useState<ChecklistTemplate[]>([]);
@@ -608,24 +610,6 @@ export default function CleaningPage() {
             <p className="text-xs text-gray-500 mb-1">{s.label}</p>
             <p className={cn('text-2xl font-bold', s.color)}>{s.value}</p>
           </div>
-        ))}
-      </div>
-
-      {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 overflow-x-auto">
-        {([
-          { key: 'tasks',      label: 'Tasks',      icon: Calendar },
-          { key: 'calendar',   label: 'Calendar',   icon: CalendarDays },
-          { key: 'schedule',   label: 'By Property',icon: Building2 },
-          { key: 'cleaners',   label: 'Cleaners',   icon: Users },
-          { key: 'checklists', label: 'Checklists', icon: ListChecks },
-          { key: 'pay',        label: 'Pay',        icon: DollarSign },
-        ] as { key: Tab; label: string; icon: React.ElementType }[]).map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)}
-            className={cn('flex-shrink-0 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-medium transition-colors',
-              tab === t.key ? 'bg-white text-navy shadow-sm' : 'text-gray-500 hover:text-gray-700')}>
-            <t.icon size={13} /> <span className="hidden sm:inline">{t.label}</span>
-          </button>
         ))}
       </div>
 
@@ -1039,5 +1023,13 @@ export default function CleaningPage() {
         <ChecklistModal template={editChecklist} onClose={() => { setShowNewChecklist(false); setEditChecklist(null); }} onSave={saveChecklist} />
       )}
     </div>
+  );
+}
+
+export default function CleaningPage() {
+  return (
+    <Suspense>
+      <CleaningPageContent />
+    </Suspense>
   );
 }
