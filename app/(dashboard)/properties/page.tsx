@@ -22,54 +22,64 @@ interface Property {
 
 type SyncState = 'idle' | 'syncing' | 'success' | 'error';
 
-const CHANNEL_META: Record<string, { domain: string; bg: string; label: string }> = {
-  airbnb:      { domain: 'airbnb.com',        bg: '#FF5A5F', label: 'A'  },
-  booking:     { domain: 'booking.com',        bg: '#003B95', label: 'B.' },
-  vrbo:        { domain: 'vrbo.com',           bg: '#1155CC', label: 'V'  },
-  homeaway:    { domain: 'homeaway.com',       bg: '#1155CC', label: 'H'  },
-  expedia:     { domain: 'expedia.com',        bg: '#FFC72C', label: 'E'  },
-  google:      { domain: 'google.com',         bg: '#4285F4', label: 'G'  },
-  tripadvisor: { domain: 'tripadvisor.com',    bg: '#00AA6C', label: 'T'  },
-  wotif:       { domain: 'wotif.com',          bg: '#F2A900', label: 'W'  },
-  agoda:       { domain: 'agoda.com',          bg: '#5C328A', label: 'Ag' },
-  whatsapp:    { domain: 'whatsapp.com',       bg: '#25D366', label: 'W'  },
-  hotelbeds:   { domain: 'hotelbeds.com',      bg: '#E25C1A', label: 'Hb' },
-  marriott:    { domain: 'marriott.com',       bg: '#8B0000', label: 'M'  },
-  direct:      { domain: '',                   bg: '#6B7280', label: 'D'  },
+// Map DB enum values and raw Hostaway strings → canonical key
+const CHANNEL_NORMALISE: Record<string, string> = {
+  AIRBNB: 'airbnb', BOOKING_COM: 'booking', DIRECT: 'direct',
+  WHATSAPP: 'whatsapp', SMS: 'sms',
 };
 
-function ChannelBadge({ channel }: { channel: string }) {
-  const meta = CHANNEL_META[channel] ?? { domain: '', bg: '#9CA3AF', label: channel.slice(0, 2).toUpperCase() };
-
-  return (
-    <span
-      title={channel}
-      className="inline-flex items-center justify-center w-7 h-7 rounded-full flex-shrink-0 overflow-hidden"
-      style={{ background: meta.bg }}
-    >
-      {meta.domain ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={`https://www.google.com/s2/favicons?domain=${meta.domain}&sz=32`}
-          alt={channel}
-          width={18}
-          height={18}
-          className="object-contain"
-          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-        />
-      ) : (
-        <span className="text-white text-[10px] font-bold">{meta.label}</span>
-      )}
-    </span>
-  );
+function normaliseChannel(raw: string): string {
+  if (CHANNEL_NORMALISE[raw]) return CHANNEL_NORMALISE[raw];
+  const s = raw.toLowerCase().replace(/[\s._-]/g, '');
+  if (s.includes('airbnb'))      return 'airbnb';
+  if (s.includes('booking'))     return 'booking';
+  if (s.includes('vrbo'))        return 'vrbo';
+  if (s.includes('homeaway'))    return 'homeaway';
+  if (s.includes('expedia'))     return 'expedia';
+  if (s.includes('wotif'))       return 'wotif';
+  if (s.includes('google'))      return 'google';
+  if (s.includes('tripadvisor')) return 'tripadvisor';
+  if (s.includes('agoda'))       return 'agoda';
+  if (s.includes('whatsapp'))    return 'whatsapp';
+  if (s.includes('direct') || s.includes('manual') || s.includes('website')) return 'direct';
+  return s;
 }
 
+const CHANNEL_BADGE: Record<string, { label: string; bg: string; fg?: string }> = {
+  airbnb:      { label: 'A',    bg: '#FF5A5F' },
+  booking:     { label: 'B.',   bg: '#003B95' },
+  vrbo:        { label: 'V',    bg: '#1B5EBE' },
+  homeaway:    { label: 'H',    bg: '#1B5EBE' },
+  expedia:     { label: 'E',    bg: '#FFC72C', fg: '#003087' },
+  google:      { label: 'G',    bg: '#4285F4' },
+  tripadvisor: { label: 'T',    bg: '#00AA6C' },
+  wotif:       { label: 'W',    bg: '#F2A900', fg: '#003087' },
+  agoda:       { label: 'Ag',   bg: '#5C328A' },
+  whatsapp:    { label: 'W',    bg: '#25D366' },
+  hotelbeds:   { label: 'Hb',   bg: '#E25C1A' },
+  marriott:    { label: 'M',    bg: '#8B0000' },
+  direct:      { label: 'D',    bg: '#6B7280' },
+  sms:         { label: 'S',    bg: '#6B7280' },
+};
+
 function ChannelDots({ channels }: { channels: string[] }) {
-  if (channels.length === 0) return <span className="text-xs text-gray-400">—</span>;
-  const unique = Array.from(new Set(channels));
+  const normalised = Array.from(new Set(channels.map(normaliseChannel))).filter(Boolean);
+  if (normalised.length === 0) return <span className="text-xs text-gray-400">—</span>;
   return (
     <div className="flex gap-1 flex-wrap">
-      {unique.map((ch) => <ChannelBadge key={ch} channel={ch} />)}
+      {normalised.map((ch) => {
+        const cfg = CHANNEL_BADGE[ch] ?? { label: ch.slice(0, 2).toUpperCase(), bg: '#9CA3AF' };
+        return (
+          <span
+            key={ch}
+            title={ch}
+            className="inline-flex items-center justify-center w-7 h-7 rounded-full flex-shrink-0 text-[11px] font-bold"
+            style={{ background: cfg.bg, color: cfg.fg ?? '#fff' }}
+          >
+            {cfg.label}
+          </span>
+        );
+      })}
     </div>
   );
 }
@@ -579,12 +589,11 @@ export default function PropertiesPage() {
               {/* Location */}
               <span className="text-sm text-gray-600 truncate">{property.address ?? '—'}</span>
 
-              {/* Channels */}
+              {/* Channels — prefer Hostaway API data, fall back to distinct booking channels */}
               <ChannelDots channels={
-                // Use Hostaway channel data when available; fall back to booking channels
-                (channelMap[property.id]?.length
+                channelMap[property.id]?.length
                   ? channelMap[property.id]
-                  : (property.bookings ?? []).map((b) => b.channel))
+                  : Array.from(new Set((property.bookings ?? []).map((b) => b.channel)))
               } />
 
               {/* Action */}

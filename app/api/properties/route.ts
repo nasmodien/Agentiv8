@@ -23,9 +23,9 @@ export async function GET(req: NextRequest) {
         where: { orgId },
         include: {
           bookings: {
-            where: { status: { in: ['CONFIRMED', 'CHECKED_IN'] } },
-            orderBy: { checkIn: 'asc' },
-            take: 1,
+            // Fetch enough bookings to capture all distinct channels + current guest
+            orderBy: { checkIn: 'desc' },
+            take: 100,
             select: { id: true, guestName: true, checkIn: true, checkOut: true, status: true, channel: true },
           },
           _count: { select: { bookings: true, conversations: true } },
