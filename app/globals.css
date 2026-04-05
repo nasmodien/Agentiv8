@@ -60,6 +60,11 @@ html.dark {
   --text-2:      rgba(241,245,249,0.65);
   --text-3:      rgba(241,245,249,0.38);
 
+  /* Blue → muted slate-gray in dark mode */
+  --blue:        #64748b;
+  --blue-light:  #94a3b8;
+  --blue-subtle: rgba(100,116,139,0.14);
+
   --shadow:      0 2px 8px rgba(0,0,0,.4), 0 6px 20px rgba(0,0,0,.3);
   --shadow-lg:   0 4px 32px rgba(0,0,0,.5);
   --shadow-sidebar: 4px 0 20px rgba(0,0,0,.4);
@@ -82,19 +87,33 @@ html, body {
 }
 
 /* ── Dark mode global overrides ─────────────────────────────────────────── */
+/* Surfaces */
 html.dark .bg-white       { background-color: var(--bg-card) !important; }
 html.dark .bg-gray-50     { background-color: var(--bg-card-2) !important; }
 html.dark .bg-gray-100    { background-color: var(--bg-input) !important; }
 html.dark .border-gray-100,
 html.dark .border-gray-200 { border-color: var(--border-col) !important; }
+html.dark .hover\:bg-gray-50:hover  { background-color: var(--bg-hover) !important; }
+html.dark .hover\:bg-gray-100:hover { background-color: var(--bg-hover) !important; }
+
+/* Text */
 html.dark .text-navy      { color: var(--text-1) !important; }
 html.dark .text-gray-800  { color: var(--text-1) !important; }
 html.dark .text-gray-700  { color: var(--text-2) !important; }
 html.dark .text-gray-600  { color: var(--text-2) !important; }
 html.dark .text-gray-500  { color: var(--text-3) !important; }
 html.dark .text-gray-400  { color: var(--text-3) !important; }
-html.dark .hover\:bg-gray-50:hover  { background-color: var(--bg-hover) !important; }
-html.dark .hover\:bg-gray-100:hover { background-color: var(--bg-hover) !important; }
+
+/* Blue → slate-gray in dark mode */
+html.dark .text-blue,
+html.dark .text-blue-light  { color: #94a3b8 !important; }
+html.dark .bg-blue          { background-color: #475569 !important; }
+html.dark .bg-blue-subtle   { background-color: rgba(100,116,139,0.14) !important; }
+html.dark .border-blue\/20,
+html.dark .border-blue      { border-color: rgba(100,116,139,0.25) !important; }
+html.dark .ring-2.ring-blue\/20,
+html.dark .ring-blue\/20    { --tw-ring-color: rgba(100,116,139,0.2) !important; }
+html.dark .hover\:border-blue\/20:hover { border-color: rgba(100,116,139,0.2) !important; }
 
 /* ── Scrollbar ───────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
