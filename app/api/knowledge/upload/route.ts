@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+async function resolveOrgId(orgId: string): Promise<string> {
+  if (orgId && orgId !== 'default') return orgId;
+  const org = await prisma.organization.findFirst({ orderBy: { createdAt: 'asc' } });
+  return org?.id ?? orgId;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
-    const orgId = formData.get('orgId') as string;
+    const rawOrgId = formData.get('orgId') as string;
+    const orgId = await resolveOrgId(rawOrgId);
     const category = formData.get('category') as string;
 
     if (!file || !orgId) {

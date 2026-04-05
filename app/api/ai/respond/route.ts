@@ -107,7 +107,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
     }
 
-    const orgId = conversation.property?.orgId ?? '';
+    const rawOrgId = conversation.property?.orgId ?? '';
+    const orgId = (rawOrgId && rawOrgId !== 'default')
+      ? rawOrgId
+      : (await prisma.organization.findFirst({ orderBy: { createdAt: 'asc' } }))?.id ?? rawOrgId;
 
     // Retrieve relevant knowledge
     const knowledgeItems = await retrieveKnowledge(orgId, guestMessage);

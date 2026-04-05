@@ -1,16 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+/** Resolve 'default' to the first real org in the DB */
+async function resolveOrgId(orgId: string): Promise<string> {
+  if (orgId && orgId !== 'default') return orgId;
+  const org = await prisma.organization.findFirst({ orderBy: { createdAt: 'asc' } });
+  return org?.id ?? orgId;
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const orgId = searchParams.get('orgId');
+    const rawOrgId = searchParams.get('orgId');
     const category = searchParams.get('category');
     const search = searchParams.get('search');
 
-    if (!orgId) {
+    if (!rawOrgId) {
       return NextResponse.json({ error: 'orgId required' }, { status: 400 });
     }
+
+    const orgId = await resolveOrgId(rawOrgId);
 
     const items = await prisma.knowledgeItem.findMany({
       where: {
@@ -38,11 +47,13 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { orgId, title, category, content, fileUrl, fileType } = body;
+    const { orgId: rawOrgId, title, category, content, fileUrl, fileType } = body;
 
-    if (!orgId || !title || !category) {
+    if (!rawOrgId || !title || !category) {
       return NextResponse.json({ error: 'orgId, title, and category are required' }, { status: 400 });
     }
+
+    const orgId = await resolveOrgId(rawOrgId);
 
     // Store in Pinecone if API key is configured
     let vectorId: string | undefined;
