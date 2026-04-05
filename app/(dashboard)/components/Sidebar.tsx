@@ -167,7 +167,9 @@ export function Sidebar() {
               {/* Parent row */}
               <div className={cn(
                 'flex items-center rounded-xl transition-all',
-                active ? 'bg-navy shadow-sm' : 'hover:bg-[var(--bg-hover)]'
+                active
+                  ? 'bg-navy dark:bg-[#2d3748] shadow-sm'
+                  : 'hover:bg-[var(--bg-hover)]'
               )}>
                 <Link
                   href={item.href}
