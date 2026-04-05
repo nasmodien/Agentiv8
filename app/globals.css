@@ -14,15 +14,15 @@
   --green: #16a34a;
   --green-light: #22c55e;
   --red: #dc2626;
-  --orange: #ea580c;
+  --orange: #f97316;
   --yellow: #ca8a04;
-  --sidebar-w: 220px;
+  --sidebar-w: 230px;
   --topbar-h: 58px;
   --mobile-nav-h: 60px;
-  --radius: 10px;
-  --shadow: 0 1px 4px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.06);
-  --shadow-lg: 0 4px 24px rgba(0,0,0,.12);
-  --background: #f4f6fb;
+  --radius: 14px;
+  --shadow: 0 2px 8px rgba(26,39,68,.05), 0 6px 20px rgba(26,39,68,.07);
+  --shadow-lg: 0 4px 32px rgba(26,39,68,.14);
+  --background: #eef2f8;
   --foreground: #1a2744;
 }
 
@@ -73,7 +73,7 @@ body {
 
 @layer components {
   .card {
-    @apply bg-white rounded-[10px];
+    @apply bg-white rounded-[14px];
     box-shadow: var(--shadow);
   }
 }

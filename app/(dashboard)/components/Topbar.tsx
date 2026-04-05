@@ -39,8 +39,8 @@ export function Topbar() {
   return (
     <>
       <header
-        className="fixed top-0 right-0 z-30 flex items-center bg-white border-b border-gray-200 px-3 md:px-6"
-        style={{ left: 0, height: 'var(--topbar-h)' }}
+        className="fixed top-0 right-0 z-30 flex items-center bg-white border-b border-gray-100 px-3 md:px-6"
+        style={{ left: 0, height: 'var(--topbar-h)', boxShadow: '0 1px 12px rgba(26,39,68,.06)' }}
       >
         {/* Mobile: Logo */}
         <div className="flex md:hidden items-center gap-2 mr-3" style={{ marginLeft: 0 }}>

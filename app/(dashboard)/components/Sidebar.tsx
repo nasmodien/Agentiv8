@@ -99,7 +99,6 @@ export function Sidebar() {
   const pathname = usePathname();
   const [openMenus, setOpenMenus] = useState<Set<string>>(new Set());
 
-  // Auto-expand menus whose path matches current pathname
   useEffect(() => {
     const toOpen = new Set<string>();
     navItems.forEach((item) => {
@@ -127,29 +126,36 @@ export function Sidebar() {
 
   return (
     <aside
-      className="fixed left-0 top-0 h-full flex flex-col z-40"
-      style={{ width: 'var(--sidebar-w)', background: 'var(--navy)' }}
+      className="fixed left-0 top-0 h-full flex flex-col z-40 bg-white"
+      style={{ width: 'var(--sidebar-w)', boxShadow: '4px 0 20px rgba(26,39,68,.06)' }}
     >
       {/* Logo */}
-      <div className="flex items-center gap-2.5 px-5 h-[58px] border-b border-white/10 flex-shrink-0">
-        <div className="w-8 h-8 rounded-lg bg-blue flex items-center justify-center flex-shrink-0">
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-            <circle cx="9" cy="9" r="3" fill="white" />
-            <path
-              d="M9 1.5v1.5M9 15v1.5M1.5 9H3M15 9h1.5M3.697 3.697l1.06 1.06M13.243 13.243l1.06 1.06M3.697 14.303l1.06-1.06M13.243 4.757l1.06-1.06"
-              stroke="white"
-              strokeWidth="1.4"
-              strokeLinecap="round"
-            />
+      <div className="flex items-center gap-2.5 px-5 h-[58px] border-b border-gray-100 flex-shrink-0">
+        {/* Network icon using brand colors */}
+        <div className="w-8 h-8 rounded-lg bg-navy flex items-center justify-center flex-shrink-0">
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+            <circle cx="10" cy="10" r="2.5" fill="#22d3ee" />
+            <circle cx="10" cy="3" r="1.5" fill="#93c5fd" />
+            <circle cx="10" cy="17" r="1.5" fill="#60a5fa" />
+            <circle cx="3" cy="10" r="1.5" fill="#1d4ed8" />
+            <circle cx="17" cy="10" r="1.5" fill="#3b82f6" />
+            <circle cx="4.5" cy="4.5" r="1.2" fill="#1e40af" />
+            <circle cx="15.5" cy="15.5" r="1.2" fill="#2563eb" />
+            <line x1="10" y1="10" x2="10" y2="4.5" stroke="#93c5fd" strokeWidth="1" />
+            <line x1="10" y1="10" x2="10" y2="15.5" stroke="#60a5fa" strokeWidth="1" />
+            <line x1="10" y1="10" x2="4.5" y2="10" stroke="#3b82f6" strokeWidth="1" />
+            <line x1="10" y1="10" x2="15.5" y2="10" stroke="#3b82f6" strokeWidth="1" />
+            <line x1="10" y1="10" x2="5.2" y2="5.2" stroke="#1e40af" strokeWidth="1" />
+            <line x1="10" y1="10" x2="14.8" y2="14.8" stroke="#2563eb" strokeWidth="1" />
           </svg>
         </div>
-        <span className="text-[17px] font-semibold text-white tracking-tight">
-          Agenti<span className="text-blue-light">v8</span>
+        <span className="text-[17px] font-bold text-navy tracking-tight">
+          Agenti<span className="text-orange">v8</span>
         </span>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-3 px-2">
+      <nav className="flex-1 overflow-y-auto py-4 px-3">
         {navItems.map((item) => {
           const active = isActive(item.href);
           const isOpen = openMenus.has(item.href);
@@ -157,27 +163,26 @@ export function Sidebar() {
           const hasChildren = !!item.children?.length;
 
           return (
-            <div key={item.href}>
+            <div key={item.href} className="mb-0.5">
               {/* Parent row */}
-              <div
-                className={cn(
-                  'flex items-center rounded-lg mb-0.5 transition-all relative',
-                  active
-                    ? 'bg-white/10 border-l-[3px] border-l-blue-light'
-                    : 'hover:bg-white/5'
-                )}
-              >
+              <div className={cn(
+                'flex items-center rounded-xl transition-all',
+                active ? 'bg-navy shadow-sm' : 'hover:bg-gray-100'
+              )}>
                 <Link
                   href={item.href}
                   className={cn(
-                    'flex-1 flex items-center gap-3 text-sm font-medium py-2.5',
-                    active ? 'text-white pl-[calc(0.75rem-3px)]' : 'text-white/60 hover:text-white/90 px-3'
+                    'flex-1 flex items-center gap-3 text-sm font-medium px-3 py-2.5 rounded-xl',
+                    active ? 'text-white' : 'text-gray-500 hover:text-navy'
                   )}
                 >
-                  <Icon size={18} className="flex-shrink-0" />
+                  <Icon size={17} className="flex-shrink-0" />
                   <span className="flex-1">{item.label}</span>
                   {item.badge && (
-                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue text-white text-[10px] font-semibold">
+                    <span className={cn(
+                      'inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-semibold',
+                      active ? 'bg-white/20 text-white' : 'bg-orange/15 text-orange'
+                    )}>
                       {item.badge}
                     </span>
                   )}
@@ -188,7 +193,10 @@ export function Sidebar() {
                 {hasChildren && (
                   <button
                     onClick={() => toggleMenu(item.href)}
-                    className="pr-3 pl-1 py-2.5 text-white/40 hover:text-white/70 transition-colors flex-shrink-0"
+                    className={cn(
+                      'pr-3 pl-1 py-2.5 transition-colors flex-shrink-0',
+                      active ? 'text-white/60 hover:text-white' : 'text-gray-400 hover:text-gray-600'
+                    )}
                     aria-label={isOpen ? 'Collapse' : 'Expand'}
                   >
                     <ChevronDown
@@ -201,17 +209,28 @@ export function Sidebar() {
 
               {/* Sub-items */}
               {hasChildren && isOpen && (
-                <div className="ml-3 mb-1 pl-4 border-l border-white/10 space-y-0.5">
-                  {item.children!.map((child) => (
-                    <Link
-                      key={child.href}
-                      href={child.href}
-                      className="flex items-center gap-2 px-2 py-1.5 rounded-md text-xs font-medium text-white/50 hover:text-white/90 hover:bg-white/5 transition-all"
-                    >
-                      <span className="w-1 h-1 rounded-full bg-white/30 flex-shrink-0" />
-                      {child.label}
-                    </Link>
-                  ))}
+                <div className="ml-4 mt-0.5 mb-1 pl-3 border-l-2 border-gray-100 space-y-0.5">
+                  {item.children!.map((child) => {
+                    const childActive = pathname === child.href;
+                    return (
+                      <Link
+                        key={child.href}
+                        href={child.href}
+                        className={cn(
+                          'flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all',
+                          childActive
+                            ? 'text-orange font-semibold bg-orange/8'
+                            : 'text-gray-400 hover:text-navy hover:bg-gray-50'
+                        )}
+                      >
+                        <span className={cn(
+                          'w-1.5 h-1.5 rounded-full flex-shrink-0',
+                          childActive ? 'bg-orange' : 'bg-gray-300'
+                        )} />
+                        {child.label}
+                      </Link>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -221,12 +240,14 @@ export function Sidebar() {
 
       {/* Escalation Box */}
       <div className="px-3 pb-4 flex-shrink-0">
-        <div className="bg-red/15 border border-red/30 rounded-lg p-3">
+        <div className="bg-red/8 border border-red/15 rounded-xl p-3">
           <div className="flex items-center gap-2 mb-2">
-            <AlertTriangle size={14} className="text-red" />
+            <div className="w-6 h-6 rounded-lg bg-red/15 flex items-center justify-center">
+              <AlertTriangle size={12} className="text-red" />
+            </div>
             <span className="text-xs font-semibold text-red">New Escalations</span>
           </div>
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-red/20 text-red text-xs font-medium">
+          <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-red/10 text-red text-[11px] font-semibold">
             2 Tasks Overdue
           </span>
         </div>
