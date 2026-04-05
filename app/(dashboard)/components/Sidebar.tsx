@@ -126,11 +126,11 @@ export function Sidebar() {
 
   return (
     <aside
-      className="fixed left-0 top-0 h-full flex flex-col z-40 bg-white"
-      style={{ width: 'var(--sidebar-w)', boxShadow: '4px 0 20px rgba(26,39,68,.06)' }}
+      className="fixed left-0 top-0 h-full flex flex-col z-40 transition-colors duration-200"
+      style={{ width: 'var(--sidebar-w)', background: 'var(--sidebar-bg)', boxShadow: 'var(--shadow-sidebar)' }}
     >
       {/* Logo */}
-      <div className="flex items-center gap-2.5 px-5 h-[58px] border-b border-gray-100 flex-shrink-0">
+      <div className="flex items-center gap-2.5 px-5 h-[58px] flex-shrink-0" style={{ borderBottom: '1px solid var(--border-col)' }}>
         {/* Network icon using brand colors */}
         <div className="w-8 h-8 rounded-lg bg-navy flex items-center justify-center flex-shrink-0">
           <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
@@ -167,13 +167,13 @@ export function Sidebar() {
               {/* Parent row */}
               <div className={cn(
                 'flex items-center rounded-xl transition-all',
-                active ? 'bg-navy shadow-sm' : 'hover:bg-gray-100'
+                active ? 'bg-navy shadow-sm' : 'hover:bg-[var(--bg-hover)]'
               )}>
                 <Link
                   href={item.href}
                   className={cn(
                     'flex-1 flex items-center gap-3 text-sm font-medium px-3 py-2.5 rounded-xl',
-                    active ? 'text-white' : 'text-gray-500 hover:text-navy'
+                    active ? 'text-white' : 'text-[var(--text-2)] hover:text-[var(--text-1)]'
                   )}
                 >
                   <Icon size={17} className="flex-shrink-0" />
@@ -195,7 +195,7 @@ export function Sidebar() {
                     onClick={() => toggleMenu(item.href)}
                     className={cn(
                       'pr-3 pl-1 py-2.5 transition-colors flex-shrink-0',
-                      active ? 'text-white/60 hover:text-white' : 'text-gray-400 hover:text-gray-600'
+                      active ? 'text-white/60 hover:text-white' : 'text-[var(--text-3)] hover:text-[var(--text-2)]'
                     )}
                     aria-label={isOpen ? 'Collapse' : 'Expand'}
                   >
@@ -209,7 +209,7 @@ export function Sidebar() {
 
               {/* Sub-items */}
               {hasChildren && isOpen && (
-                <div className="ml-4 mt-0.5 mb-1 pl-3 border-l-2 border-gray-100 space-y-0.5">
+                <div className="ml-4 mt-0.5 mb-1 pl-3 space-y-0.5" style={{ borderLeft: '2px solid var(--border-col)' }}>
                   {item.children!.map((child) => {
                     const childActive = pathname === child.href;
                     return (
@@ -219,8 +219,8 @@ export function Sidebar() {
                         className={cn(
                           'flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all',
                           childActive
-                            ? 'text-orange font-semibold bg-orange/8'
-                            : 'text-gray-400 hover:text-navy hover:bg-gray-50'
+                            ? 'text-orange font-semibold bg-orange/10'
+                            : 'text-[var(--text-3)] hover:text-[var(--text-1)] hover:bg-[var(--bg-hover)]'
                         )}
                       >
                         <span className={cn(

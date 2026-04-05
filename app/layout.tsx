@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { SessionProviderWrapper } from '@/components/SessionProviderWrapper';
+import { ThemeProvider } from '@/lib/theme-provider';
 
 export const metadata: Metadata = {
   title: 'Agentiv8 — AI Guest Operations Platform',
@@ -29,7 +30,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
       <body className="font-sans antialiased">
-        <SessionProviderWrapper>{children}</SessionProviderWrapper>
+        <ThemeProvider>
+          <SessionProviderWrapper>{children}</SessionProviderWrapper>
+        </ThemeProvider>
       </body>
     </html>
   );

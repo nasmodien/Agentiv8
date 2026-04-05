@@ -4,6 +4,7 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Light theme (default) ───────────────────────────────────────────────── */
 :root {
   --navy: #1a2744;
   --navy-light: #243256;
@@ -16,64 +17,101 @@
   --red: #dc2626;
   --orange: #f97316;
   --yellow: #ca8a04;
+
   --sidebar-w: 230px;
   --topbar-h: 58px;
   --mobile-nav-h: 60px;
   --radius: 14px;
-  --shadow: 0 2px 8px rgba(26,39,68,.05), 0 6px 20px rgba(26,39,68,.07);
-  --shadow-lg: 0 4px 32px rgba(26,39,68,.14);
-  --background: #eef2f8;
-  --foreground: #1a2744;
+
+  /* Themed surfaces */
+  --bg-page:     #eef2f8;
+  --bg-card:     #ffffff;
+  --bg-card-2:   #f9fafb;
+  --bg-input:    #f9fafb;
+  --bg-hover:    #f3f4f6;
+  --border-col:  #e5e7eb;
+  --sidebar-bg:  #ffffff;
+  --topbar-bg:   #ffffff;
+  --text-1:      #1a2744;
+  --text-2:      #6b7280;
+  --text-3:      #9ca3af;
+
+  --shadow:      0 2px 8px rgba(26,39,68,.05), 0 6px 20px rgba(26,39,68,.07);
+  --shadow-lg:   0 4px 32px rgba(26,39,68,.14);
+  --shadow-sidebar: 4px 0 20px rgba(26,39,68,.06);
+
+  --background: var(--bg-page);
+  --foreground: var(--text-1);
 }
 
-* {
-  box-sizing: border-box;
+/* ── Dark theme ──────────────────────────────────────────────────────────── */
+html.dark {
+  color-scheme: dark;
+
+  --bg-page:     #0d1117;
+  --bg-card:     #1a2744;
+  --bg-card-2:   #1e2d4f;
+  --bg-input:    #243256;
+  --bg-hover:    rgba(255,255,255,0.06);
+  --border-col:  rgba(255,255,255,0.08);
+  --sidebar-bg:  #0d1117;
+  --topbar-bg:   #0d1117;
+  --text-1:      #f1f5f9;
+  --text-2:      rgba(241,245,249,0.65);
+  --text-3:      rgba(241,245,249,0.38);
+
+  --shadow:      0 2px 8px rgba(0,0,0,.4), 0 6px 20px rgba(0,0,0,.3);
+  --shadow-lg:   0 4px 32px rgba(0,0,0,.5);
+  --shadow-sidebar: 4px 0 20px rgba(0,0,0,.4);
+
+  --background: var(--bg-page);
+  --foreground: var(--text-1);
 }
 
-html,
-body {
+/* ── Base ────────────────────────────────────────────────────────────────── */
+* { box-sizing: border-box; }
+
+html, body {
   height: 100%;
   font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
-  background-color: var(--background);
-  color: var(--foreground);
+  background-color: var(--bg-page);
+  color: var(--text-1);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
-}
+/* ── Dark mode global overrides ─────────────────────────────────────────── */
+html.dark .bg-white       { background-color: var(--bg-card) !important; }
+html.dark .bg-gray-50     { background-color: var(--bg-card-2) !important; }
+html.dark .bg-gray-100    { background-color: var(--bg-input) !important; }
+html.dark .border-gray-100,
+html.dark .border-gray-200 { border-color: var(--border-col) !important; }
+html.dark .text-navy      { color: var(--text-1) !important; }
+html.dark .text-gray-800  { color: var(--text-1) !important; }
+html.dark .text-gray-700  { color: var(--text-2) !important; }
+html.dark .text-gray-600  { color: var(--text-2) !important; }
+html.dark .text-gray-500  { color: var(--text-3) !important; }
+html.dark .text-gray-400  { color: var(--text-3) !important; }
+html.dark .hover\:bg-gray-50:hover  { background-color: var(--bg-hover) !important; }
+html.dark .hover\:bg-gray-100:hover { background-color: var(--bg-hover) !important; }
 
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #d1d5db;
-  border-radius: 999px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
-}
-
-/* Firefox scrollbar */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: #d1d5db transparent;
-}
+/* ── Scrollbar ───────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+html.dark ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); }
+* { scrollbar-width: thin; scrollbar-color: #d1d5db transparent; }
 
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+  .text-balance { text-wrap: balance; }
 }
 
 @layer components {
   .card {
-    @apply bg-white rounded-[14px];
+    @apply rounded-[14px];
+    background-color: var(--bg-card);
     box-shadow: var(--shadow);
   }
 }

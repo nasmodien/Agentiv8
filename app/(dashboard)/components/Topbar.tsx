@@ -1,12 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Bell, User, ChevronDown } from 'lucide-react';
+import { Bell, User, ChevronDown, Sun, Moon } from 'lucide-react';
+import { useTheme } from '@/lib/theme-provider';
 
 interface Property { id: string; name: string; unitNumber: string | null }
 interface Stats { totalProperties: number; bookedProperties: number; checkInsToday: number; escalations: number }
 
 export function Topbar() {
+  const { theme, toggle } = useTheme();
   const [properties, setProperties] = useState<Property[]>([]);
   const [selected, setSelected] = useState<Property | null>(null);
   const [stats, setStats] = useState<Stats>({ totalProperties: 0, bookedProperties: 0, checkInsToday: 0, escalations: 0 });
@@ -39,8 +41,14 @@ export function Topbar() {
   return (
     <>
       <header
-        className="fixed top-0 right-0 z-30 flex items-center bg-white border-b border-gray-100 px-3 md:px-6"
-        style={{ left: 0, height: 'var(--topbar-h)', boxShadow: '0 1px 12px rgba(26,39,68,.06)' }}
+        className="fixed top-0 right-0 z-30 flex items-center px-3 md:px-6 transition-colors duration-200"
+        style={{
+          left: 0,
+          height: 'var(--topbar-h)',
+          background: 'var(--topbar-bg)',
+          borderBottom: '1px solid var(--border-col)',
+          boxShadow: '0 1px 12px rgba(26,39,68,.06)',
+        }}
       >
         {/* Mobile: Logo */}
         <div className="flex md:hidden items-center gap-2 mr-3" style={{ marginLeft: 0 }}>
@@ -107,13 +115,24 @@ export function Topbar() {
         </div>
 
         <div className="flex items-center gap-1 ml-auto">
-          <button className="relative w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors">
-            <Bell size={18} className="text-gray-600" />
+          {/* Theme toggle */}
+          <button
+            onClick={toggle}
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-[var(--bg-hover)] transition-colors"
+          >
+            {theme === 'dark'
+              ? <Sun size={17} className="text-orange" />
+              : <Moon size={17} className="text-[var(--text-2)]" />
+            }
+          </button>
+          <button className="relative w-9 h-9 flex items-center justify-center rounded-lg hover:bg-[var(--bg-hover)] transition-colors">
+            <Bell size={18} className="text-[var(--text-2)]" />
             {stats.escalations > 0 && (
               <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red border-2 border-white" />
             )}
           </button>
-          <button className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors">
+          <button className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-[var(--bg-hover)] transition-colors">
             <div className="w-7 h-7 rounded-full bg-navy flex items-center justify-center">
               <User size={14} className="text-white" />
             </div>

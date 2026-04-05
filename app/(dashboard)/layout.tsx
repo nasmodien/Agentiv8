@@ -4,7 +4,7 @@ import { Topbar } from './components/Topbar';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-[#eef2f8]">
+    <div className="min-h-screen transition-colors duration-200" style={{ background: 'var(--bg-page)' }}>
       {/* Desktop sidebar — hidden on mobile */}
       <div className="hidden md:block">
         <Sidebar />
