@@ -444,38 +444,60 @@ export default function MessagesPage() {
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
-              {selected.messages.map((msg) => (
-                <div key={msg.id} className={cn('flex', msg.role !== 'GUEST' ? 'justify-end' : 'justify-start')}>
-                  <div className="max-w-[75%]">
-                    {msg.role === 'GUEST' && (
-                      <div className="px-4 py-3 rounded-2xl rounded-bl-[4px] text-sm text-gray-800 bg-white border border-gray-200">
-                        {msg.content}
+            <div className="flex-1 overflow-y-auto px-5 py-5 space-y-3">
+              {selected.messages.map((msg) => {
+                const isGuest = msg.role === 'GUEST';
+                const isAI = msg.role === 'AI';
+                return (
+                  <div key={msg.id} className={cn('flex', isGuest ? 'justify-start' : 'justify-end')}>
+                    {/* Guest: left side, indented from right */}
+                    {isGuest && (
+                      <div className="max-w-[68%] mr-12">
+                        <p className="text-[10px] font-medium text-gray-400 mb-1 ml-1">
+                          {selected.booking?.guestName?.split(' ')[0] ?? 'Guest'}
+                        </p>
+                        <div className="px-4 py-3 rounded-2xl rounded-tl-[4px] text-sm text-gray-800"
+                          style={{ background: '#f0f2f5', border: '1px solid #e4e6ea' }}>
+                          {msg.content}
+                        </div>
+                        <p className="text-[10px] text-gray-400 mt-1 ml-1">
+                          {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
                       </div>
                     )}
-                    {msg.role === 'AI' && (
-                      <div>
-                        <div className="flex items-center gap-1.5 mb-1 justify-end">
-                          <Sparkles size={10} className="text-blue" />
-                          <span className="text-[10px] text-blue font-medium">AI Reply</span>
+
+                    {/* AI reply: right side, indented from left */}
+                    {isAI && (
+                      <div className="max-w-[68%] ml-12">
+                        <div className="flex items-center gap-1 mb-1 justify-end mr-1">
+                          <Sparkles size={9} className="text-blue" />
+                          <p className="text-[10px] font-medium text-blue">AI Reply</p>
                         </div>
-                        <div className="px-4 py-3 rounded-2xl rounded-br-[4px] text-sm text-blue border border-blue/20"
+                        <div className="px-4 py-3 rounded-2xl rounded-tr-[4px] text-sm text-blue border border-blue/20"
                           style={{ background: 'linear-gradient(135deg, #e8f0fe, #dbeafe)' }}>
                           {msg.content}
                         </div>
+                        <p className="text-[10px] text-gray-400 mt-1 text-right mr-1">
+                          {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
                       </div>
                     )}
+
+                    {/* Host (human): right side, indented from left */}
                     {msg.role === 'HUMAN' && (
-                      <div className="px-4 py-3 rounded-2xl rounded-br-[4px] text-sm text-white bg-navy">
-                        {msg.content}
+                      <div className="max-w-[68%] ml-12">
+                        <p className="text-[10px] font-medium text-navy/60 mb-1 text-right mr-1">You</p>
+                        <div className="px-4 py-3 rounded-2xl rounded-tr-[4px] text-sm text-white bg-navy">
+                          {msg.content}
+                        </div>
+                        <p className="text-[10px] text-gray-400 mt-1 text-right mr-1">
+                          {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
                       </div>
                     )}
-                    <p className={cn('text-[10px] text-gray-400 mt-1', msg.role !== 'GUEST' ? 'text-right' : 'text-left')}>
-                      {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </p>
                   </div>
-                </div>
-              ))}
+                );
+              })}
               {selected.messages.length === 0 && (
                 <div className="text-center text-gray-400 text-sm py-8">No messages yet</div>
               )}
