@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
+import { useState, useEffect, useRef, useCallback, Suspense, type ReactNode } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   ChevronDown, Send, RefreshCw, RotateCcw, X,
@@ -322,7 +322,7 @@ function TestPanel({ properties, tone, answerLength, onClose }: TestPanelProps) 
 }
 
 // ─── Row component ─────────────────────────────────────────────────────────────
-function SettingRow({ label, description, children }: { label: string; description?: string; children: React.ReactNode }) {
+function SettingRow({ label, description, children }: { label: string; description?: string; children: ReactNode }) {
   return (
     <div className="flex items-start py-5 border-b border-gray-100 last:border-0">
       <div className="flex-1 min-w-0 pr-8">
