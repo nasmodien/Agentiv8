@@ -116,6 +116,32 @@ export async function GET(request: NextRequest) {
   }
 }
 
+export async function PATCH(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { conversationId, status } = body;
+
+    if (!conversationId || !status) {
+      return NextResponse.json({ error: 'conversationId and status are required' }, { status: 400 });
+    }
+
+    const allowed = ['AI_HANDLED', 'NEEDS_REVIEW', 'ESCALATED', 'RESOLVED'];
+    if (!allowed.includes(status)) {
+      return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
+    }
+
+    const conversation = await prisma.conversation.update({
+      where: { id: conversationId },
+      data: { status },
+    });
+
+    return NextResponse.json({ conversation });
+  } catch (error) {
+    console.error('PATCH /api/messages error:', error);
+    return NextResponse.json({ error: 'Failed to update conversation' }, { status: 500 });
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();

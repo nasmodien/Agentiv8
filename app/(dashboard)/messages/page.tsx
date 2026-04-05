@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Search, Clock, Send, CheckCircle, AlertTriangle, ArrowUp,
   Wifi, Car, BookOpen, Wine, Utensils, Plane, RefreshCw, ArrowLeft, Info,
+  Sparkles, ChevronDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -108,7 +109,6 @@ export default function MessagesPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
-  // Mobile: 'list' | 'chat' | 'info'
   const [mobilePanel, setMobilePanel] = useState<'list' | 'chat' | 'info'>('list');
   const [activeChannel, setActiveChannel] = useState<Channel>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -117,6 +117,17 @@ export default function MessagesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
+
+  // AI reply state
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiConfidence, setAiConfidence] = useState<number | null>(null);
+  const [aiEscalated, setAiEscalated] = useState(false);
+  const [aiKbCount, setAiKbCount] = useState<number | null>(null);
+
+  // Status action state
+  const [statusUpdating, setStatusUpdating] = useState(false);
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const buildUrl = useCallback((cursor?: string) => {
     const params = new URLSearchParams({ limit: '50' });
@@ -152,9 +163,7 @@ export default function MessagesPage() {
     } finally { setLoadingMore(false); }
   };
 
-  useEffect(() => {
-    fetchConversations();
-  }, [fetchConversations]);
+  useEffect(() => { fetchConversations(); }, [fetchConversations]);
 
   useEffect(() => {
     fetch('/api/properties?orgId=default').then(r => r.json()).then(d => {
@@ -162,17 +171,23 @@ export default function MessagesPage() {
     }).catch(() => {});
   }, [fetchConversations]);
 
-  // Server handles property/status/search filters; client filters channel only
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [selectedId, conversations]);
+
   const filtered = activeChannel === 'all'
     ? conversations
     : conversations.filter(c => c.channel === activeChannel || c.booking?.channel === activeChannel);
-
 
   const selected = conversations.find(c => c.id === selectedId) ?? null;
 
   const handleSend = async () => {
     if (!message.trim() || !selectedId) return;
     setSending(true);
+    setAiConfidence(null);
+    setAiEscalated(false);
+    setAiKbCount(null);
     try {
       await fetch('/api/messages', {
         method: 'POST',
@@ -183,6 +198,56 @@ export default function MessagesPage() {
       await fetchConversations();
     } finally {
       setSending(false);
+    }
+  };
+
+  /** Generate an AI reply draft and load it into the textarea */
+  const handleAIReply = async () => {
+    if (!selectedId || !selected) return;
+    const lastGuestMsg = [...selected.messages].reverse().find(m => m.role === 'GUEST');
+    if (!lastGuestMsg) return;
+
+    setAiLoading(true);
+    setAiConfidence(null);
+    setAiEscalated(false);
+    setAiKbCount(null);
+    try {
+      const res = await fetch('/api/ai/respond', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversationId: selectedId,
+          guestMessage: lastGuestMsg.content,
+        }),
+      });
+      const data = await res.json();
+      if (data.reply) {
+        setMessage(data.reply);
+        setAiConfidence(data.confidence ?? null);
+        setAiEscalated(data.needsEscalation ?? false);
+        setAiKbCount(data.kbItemsUsed ?? null);
+        // Refresh conversation to show AI message
+        await fetchConversations();
+      }
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const handleStatusUpdate = async (status: ConversationStatus) => {
+    if (!selectedId) return;
+    setStatusUpdating(true);
+    try {
+      await fetch('/api/messages', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversationId: selectedId, status }),
+      });
+      setConversations(prev =>
+        prev.map(c => c.id === selectedId ? { ...c, status } : c)
+      );
+    } finally {
+      setStatusUpdating(false);
     }
   };
 
@@ -269,13 +334,15 @@ export default function MessagesPage() {
             return (
               <button
                 key={conv.id}
-                onClick={() => { setSelectedId(conv.id); setMobilePanel('chat'); }}
+                onClick={() => { setSelectedId(conv.id); setMobilePanel('chat'); setAiConfidence(null); setAiEscalated(false); }}
                 className={cn(
                   'w-full text-left px-4 py-3.5 border-b border-gray-50 transition-all flex items-start gap-3',
                   selectedId === conv.id
                     ? 'bg-blue-subtle border-l-[3px] border-l-blue'
                     : conv.status === 'ESCALATED'
                     ? 'border-l-[3px] border-l-red hover:bg-gray-50'
+                    : conv.status === 'NEEDS_REVIEW'
+                    ? 'border-l-[3px] border-l-orange hover:bg-gray-50'
                     : 'hover:bg-gray-50'
                 )}
               >
@@ -315,9 +382,9 @@ export default function MessagesPage() {
           </div>
         ) : (
           <>
+            {/* Chat Header */}
             <div className="flex items-center justify-between px-3 md:px-5 py-3.5 border-b border-gray-100 flex-shrink-0">
               <div className="flex items-center gap-2 md:gap-3">
-                {/* Back button — mobile only */}
                 <button
                   onClick={() => setMobilePanel('list')}
                   className="md:hidden p-1 -ml-1 rounded-lg hover:bg-gray-100 text-gray-500"
@@ -335,22 +402,48 @@ export default function MessagesPage() {
                 </div>
               </div>
               <div className="flex items-center gap-1.5 md:gap-2">
-                {/* Info button — mobile only */}
                 <button
                   onClick={() => setMobilePanel('info')}
                   className="md:hidden w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500"
                 >
                   <Info size={17} />
                 </button>
-                <button className="hidden md:block px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors">
-                  Mark Resolved
-                </button>
-                <button className="hidden md:block px-3 py-1.5 text-xs font-medium bg-navy text-white rounded-lg hover:opacity-90 transition-colors">
-                  Escalate
-                </button>
+
+                {/* Status actions */}
+                {selected.status !== 'RESOLVED' && (
+                  <button
+                    onClick={() => handleStatusUpdate('RESOLVED')}
+                    disabled={statusUpdating}
+                    className="hidden md:flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors disabled:opacity-50"
+                  >
+                    {statusUpdating ? <RefreshCw size={11} className="animate-spin" /> : <CheckCircle size={11} />}
+                    Mark Resolved
+                  </button>
+                )}
+                {selected.status !== 'ESCALATED' && selected.status !== 'RESOLVED' && (
+                  <button
+                    onClick={() => handleStatusUpdate('ESCALATED')}
+                    disabled={statusUpdating}
+                    className="hidden md:flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red text-white rounded-lg hover:opacity-90 transition-colors disabled:opacity-50"
+                  >
+                    {statusUpdating ? <RefreshCw size={11} className="animate-spin" /> : <ArrowUp size={11} />}
+                    Escalate
+                  </button>
+                )}
+                {selected.status === 'RESOLVED' && (
+                  <button
+                    onClick={() => handleStatusUpdate('AI_HANDLED')}
+                    disabled={statusUpdating}
+                    className="hidden md:flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors disabled:opacity-50"
+                  >
+                    <ChevronDown size={11} />
+                    Reopen
+                  </button>
+                )}
               </div>
             </div>
 
+            {/* Messages */}
             <div className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
               {selected.messages.map((msg) => (
                 <div key={msg.id} className={cn('flex', msg.role !== 'GUEST' ? 'justify-end' : 'justify-start')}>
@@ -361,9 +454,15 @@ export default function MessagesPage() {
                       </div>
                     )}
                     {msg.role === 'AI' && (
-                      <div className="px-4 py-3 rounded-2xl rounded-br-[4px] text-sm text-blue border border-blue/20"
-                        style={{ background: 'linear-gradient(135deg, #e8f0fe, #dbeafe)' }}>
-                        {msg.content}
+                      <div>
+                        <div className="flex items-center gap-1.5 mb-1 justify-end">
+                          <Sparkles size={10} className="text-blue" />
+                          <span className="text-[10px] text-blue font-medium">AI Reply</span>
+                        </div>
+                        <div className="px-4 py-3 rounded-2xl rounded-br-[4px] text-sm text-blue border border-blue/20"
+                          style={{ background: 'linear-gradient(135deg, #e8f0fe, #dbeafe)' }}>
+                          {msg.content}
+                        </div>
                       </div>
                     )}
                     {msg.role === 'HUMAN' && (
@@ -380,19 +479,47 @@ export default function MessagesPage() {
               {selected.messages.length === 0 && (
                 <div className="text-center text-gray-400 text-sm py-8">No messages yet</div>
               )}
+              <div ref={messagesEndRef} />
             </div>
 
+            {/* Input Area */}
             <div className="px-5 py-3.5 border-t border-gray-100 flex-shrink-0">
+              {/* AI confidence badge */}
+              {aiConfidence !== null && (
+                <div className={cn(
+                  'flex items-center gap-2 mb-2 px-3 py-1.5 rounded-lg text-xs',
+                  aiEscalated
+                    ? 'bg-orange/10 text-orange border border-orange/20'
+                    : 'bg-green/10 text-green border border-green/20'
+                )}>
+                  <Sparkles size={12} />
+                  <span>
+                    AI confidence: <strong>{Math.round(aiConfidence * 100)}%</strong>
+                    {aiKbCount !== null && ` · ${aiKbCount} KB items used`}
+                    {aiEscalated && ' · Consider escalating'}
+                  </span>
+                </div>
+              )}
+
               <div className="flex items-end gap-3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
-                <button className="flex-shrink-0 text-gray-400 hover:text-gray-600 mb-0.5">
-                  <Clock size={16} />
+                {/* AI reply button */}
+                <button
+                  onClick={handleAIReply}
+                  disabled={aiLoading || !selected.messages.some(m => m.role === 'GUEST')}
+                  title="Generate AI reply draft"
+                  className="flex-shrink-0 text-gray-400 hover:text-blue mb-0.5 transition-colors disabled:opacity-40"
+                >
+                  {aiLoading
+                    ? <RefreshCw size={16} className="animate-spin" />
+                    : <Sparkles size={16} />}
                 </button>
+
                 <textarea
                   rows={1}
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-                  placeholder="Type a message..."
+                  placeholder={aiLoading ? 'Generating AI reply...' : 'Type a message or click ✦ for AI draft...'}
                   className="flex-1 bg-transparent text-sm resize-none focus:outline-none text-gray-800 placeholder-gray-400"
                 />
                 <button
@@ -403,6 +530,9 @@ export default function MessagesPage() {
                   <Send size={14} className="text-white" />
                 </button>
               </div>
+              <p className="text-[10px] text-gray-400 mt-1.5 text-center">
+                Press ✦ to generate an AI draft · Enter to send · Shift+Enter for new line
+              </p>
             </div>
           </>
         )}
@@ -422,23 +552,27 @@ export default function MessagesPage() {
             >
               <ArrowLeft size={16} /> Back to chat
             </button>
-            {/* 1. Guest avatar + name + property unit */}
+
+            {/* Guest avatar + name */}
             <div className="text-center mb-5 pb-5 border-b border-gray-100">
               <div className="w-14 h-14 rounded-full bg-navy flex items-center justify-center mx-auto mb-3">
                 <span className="text-white text-lg font-semibold">{initials(selected.booking?.guestName ?? 'G')}</span>
               </div>
               <p className="font-semibold text-navy text-sm">{selected.booking?.guestName ?? 'Guest'}</p>
               <p className="text-xs text-gray-500">{selected.property?.unitNumber ?? selected.property?.name ?? ''}</p>
-              {/* 2. Guest contact */}
               {selected.booking?.guestEmail && (
                 <p className="text-xs text-gray-400 mt-1">{selected.booking.guestEmail}</p>
               )}
               {selected.booking?.guestPhone && (
                 <p className="text-xs text-gray-400">{selected.booking.guestPhone}</p>
               )}
+              {/* Status badge */}
+              <div className="mt-2 flex justify-center">
+                <StatusBadge status={selected.status} />
+              </div>
             </div>
 
-            {/* 3. Reservation section */}
+            {/* Reservation */}
             {selected.booking && (() => {
               const bk = selected.booking;
               const pr = selected.property;
@@ -458,7 +592,6 @@ export default function MessagesPage() {
                 <div className="mb-5 pb-5 border-b border-gray-100">
                   <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Reservation</h3>
                   <div className="bg-gray-50 rounded-xl p-3 space-y-2.5">
-                    {/* Status badge */}
                     <div className="flex items-center justify-between">
                       {badge && (
                         <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${badge.color}`}>{badge.label}</span>
@@ -467,19 +600,16 @@ export default function MessagesPage() {
                         <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700">Paid</span>
                       )}
                     </div>
-                    {/* Channel */}
                     <div className="flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: channelColor }} />
                       <span className="text-xs text-gray-600">{bk.channel.replace('_', '.')}</span>
                     </div>
-                    {/* Property name + address */}
                     {pr && (
                       <div>
                         <p className="text-xs font-medium text-navy">{pr.unitNumber ?? pr.name}</p>
                         {pr.address && <p className="text-[10px] text-gray-400">{pr.address}</p>}
                       </div>
                     )}
-                    {/* Check-in / Check-out dates side by side */}
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <p className="text-[10px] text-gray-400">Check-in</p>
@@ -490,7 +620,6 @@ export default function MessagesPage() {
                         <p className="text-xs font-medium text-navy">{checkOut.toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: '2-digit' })}</p>
                       </div>
                     </div>
-                    {/* Check-in time / Check-out time side by side */}
                     {pr && (pr.checkInTime || pr.checkOutTime) && (
                       <div className="grid grid-cols-2 gap-2">
                         <div>
@@ -503,7 +632,6 @@ export default function MessagesPage() {
                         </div>
                       </div>
                     )}
-                    {/* Nights / Guests side by side */}
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <p className="text-[10px] text-gray-400">Nights</p>
@@ -514,7 +642,6 @@ export default function MessagesPage() {
                         <p className="text-xs font-medium text-navy">{bk.adults} adults</p>
                       </div>
                     </div>
-                    {/* Financial row */}
                     {((bk.guestTotal ?? 0) > 0 || (bk.totalPrice ?? 0) > 0) && (
                       <div className="pt-1.5 border-t border-gray-200 space-y-1">
                         {(bk.guestTotal ?? 0) > 0 && (
@@ -536,7 +663,7 @@ export default function MessagesPage() {
               );
             })()}
 
-            {/* 4. Property Info section */}
+            {/* Property Info */}
             {selected.property && (
               <div className="space-y-3 mb-5 pb-5 border-b border-gray-100">
                 <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Property Info</h3>
@@ -568,7 +695,7 @@ export default function MessagesPage() {
               </div>
             )}
 
-            {/* 5. Concierge section */}
+            {/* Concierge */}
             <div className="space-y-3">
               <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Concierge</h3>
               <div className="space-y-2">
