@@ -17,6 +17,7 @@ import {
   RefreshCw,
   ChevronDown,
   CheckSquare,
+  Bot,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -80,6 +81,13 @@ const navItems: NavItem[] = [
     children: [
       { label: 'Browse', href: '/knowledge' },
       { label: 'Add Entry', href: '/knowledge?action=add' },
+    ],
+  },
+  {
+    label: 'AI Replies', href: '/ai', icon: Bot,
+    children: [
+      { label: 'General', href: '/ai' },
+      { label: 'Knowledge Base', href: '/ai?tab=kb' },
     ],
   },
   { label: 'Sync', href: '/sync', icon: RefreshCw },
