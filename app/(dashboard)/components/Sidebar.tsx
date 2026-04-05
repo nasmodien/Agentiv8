@@ -168,7 +168,7 @@ export function Sidebar() {
               <div className={cn(
                 'flex items-center rounded-xl transition-all',
                 active
-                  ? 'bg-navy dark:bg-[#2d3748] shadow-sm'
+                  ? 'bg-navy dark:bg-[#2d2d2d] shadow-sm'
                   : 'hover:bg-[var(--bg-hover)]'
               )}>
                 <Link
