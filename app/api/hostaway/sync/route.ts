@@ -74,32 +74,29 @@ export async function GET(req: NextRequest) {
 
       let synced = 0;
       for (const listing of listings) {
+        const listingData = {
+          name: listing.name ?? `Property ${listing.id}`,
+          unitNumber: listing.internalListingName ?? listing.name,
+          address: listing.address ?? null,
+          suburb: listing.state ?? listing.neighbourhood ?? null,
+          city: listing.city ?? null,
+          country: listing.countryCode ?? listing.country ?? null,
+          description: listing.publicDescription?.summary
+            ?? listing.description
+            ?? listing.internalDescription
+            ?? null,
+          bedrooms: listing.bedroomsCount ?? listing.bedrooms ?? null,
+          bathrooms: listing.bathroomsCount != null ? parseFloat(String(listing.bathroomsCount)) : null,
+          maxGuests: listing.personCapacity ?? listing.guestsIncluded ?? null,
+          wifiNetwork: listing.wifiName ?? null,
+          wifiPassword: listing.wifiPassword ?? null,
+          checkInTime: listing.checkInTimeStart != null ? `${listing.checkInTimeStart}:00` : '15:00',
+          checkOutTime: listing.checkOutTime != null ? `${listing.checkOutTime}:00` : '11:00',
+        };
         await prisma.property.upsert({
           where: { id: String(listing.id) },
-          create: {
-            id: String(listing.id),
-            orgId: org.id,
-            name: listing.name ?? `Property ${listing.id}`,
-            unitNumber: listing.internalListingName ?? listing.name,
-            address: [listing.address, listing.city, listing.state, listing.countryCode]
-              .filter(Boolean)
-              .join(', '),
-            wifiNetwork: listing.wifiName ?? null,
-            wifiPassword: listing.wifiPassword ?? null,
-            checkInTime: listing.checkInTimeStart != null ? `${listing.checkInTimeStart}:00` : '15:00',
-            checkOutTime: listing.checkOutTime != null ? `${listing.checkOutTime}:00` : '11:00',
-          },
-          update: {
-            name: listing.name ?? `Property ${listing.id}`,
-            unitNumber: listing.internalListingName ?? listing.name,
-            address: [listing.address, listing.city, listing.state, listing.countryCode]
-              .filter(Boolean)
-              .join(', '),
-            wifiNetwork: listing.wifiName ?? null,
-            wifiPassword: listing.wifiPassword ?? null,
-            checkInTime: listing.checkInTimeStart != null ? `${listing.checkInTimeStart}:00` : '15:00',
-            checkOutTime: listing.checkOutTime != null ? `${listing.checkOutTime}:00` : '11:00',
-          },
+          create: { id: String(listing.id), orgId: org.id, ...listingData },
+          update: listingData,
         });
         synced++;
       }

@@ -70,6 +70,13 @@ model Property {
   name           String
   unitNumber     String?
   address        String?
+  suburb         String?
+  city           String?
+  country        String?
+  description    String?          @db.Text
+  bedrooms       Int?
+  bathrooms      Float?
+  maxGuests      Int?
   wifiNetwork    String?
   wifiPassword   String?
   parkingSpot    String?

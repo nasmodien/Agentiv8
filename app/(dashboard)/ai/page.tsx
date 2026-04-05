@@ -17,6 +17,19 @@ interface Property {
   name: string;
   unitNumber: string | null;
   address: string | null;
+  suburb: string | null;
+  city: string | null;
+  country: string | null;
+  description: string | null;
+  bedrooms: number | null;
+  bathrooms: number | null;
+  maxGuests: number | null;
+  wifiNetwork: string | null;
+  wifiPassword: string | null;
+  parkingSpot: string | null;
+  parkingCode: string | null;
+  checkInTime: string | null;
+  checkOutTime: string | null;
   createdAt: string;
 }
 
@@ -96,6 +109,26 @@ function SettingRow({ label, required = true, description, children }: {
         {description && <p className="text-xs text-blue mt-0.5 leading-snug">{description}</p>}
       </div>
       <div className="w-[320px] flex-shrink-0">{children}</div>
+    </div>
+  );
+}
+
+// ─── Context helpers ──────────────────────────────────────────────────────────
+function ContextSection({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="bg-gray-50 rounded-xl px-3 py-3">
+      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2">{title}</p>
+      <div className="space-y-1.5">{children}</div>
+    </div>
+  );
+}
+
+function CtxRow({ label, value }: { label: string; value: string | null | undefined }) {
+  if (!value) return null;
+  return (
+    <div className="flex items-start gap-2">
+      <span className="text-[11px] text-gray-400 w-24 flex-shrink-0">{label}</span>
+      <span className="text-[11px] text-navy font-medium flex-1 break-words">{value}</span>
     </div>
   );
 }
@@ -359,8 +392,8 @@ function PropertyFactsPanel({ property, orgId, onClose }: {
 }
 
 // ─── Test AI Panel ────────────────────────────────────────────────────────────
-function TestPanel({ properties, tone, answerLength, model, onClose }: {
-  properties: Property[]; tone: string; answerLength: string; model: string; onClose: () => void;
+function TestPanel({ properties, kbItems, tone, answerLength, model, onClose }: {
+  properties: Property[]; kbItems: KBItem[]; tone: string; answerLength: string; model: string; onClose: () => void;
 }) {
   const [testTab, setTestTab] = useState<'test' | 'context'>('test');
   const [selectedPropertyId, setSelectedPropertyId] = useState(properties[0]?.id ?? '');
@@ -398,6 +431,7 @@ function TestPanel({ properties, tone, answerLength, model, onClose }: {
   };
 
   const selectedProperty = properties.find(p => p.id === selectedPropertyId);
+  const kbCount = kbItems.filter(k => !k.propertyId || k.propertyId === selectedPropertyId).length;
 
   return (
     <div className="w-[340px] flex-shrink-0 border-l border-gray-200 bg-white flex flex-col h-full">
@@ -511,21 +545,59 @@ function TestPanel({ properties, tone, answerLength, model, onClose }: {
           </div>
         </>
       ) : (
-        <div className="flex-1 overflow-y-auto px-4 py-4">
-          <p className="text-xs font-semibold text-navy mb-3">Active context</p>
-          {selectedProperty && (
-            <div className="space-y-3">
-              <div className="bg-blue-subtle rounded-xl p-3">
-                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Property</p>
-                <p className="text-xs font-medium text-navy">{selectedProperty.unitNumber ?? selectedProperty.name}</p>
-                {selectedProperty.address && <p className="text-[11px] text-gray-500 mt-0.5">{selectedProperty.address}</p>}
-              </div>
-              <div className="bg-gray-50 rounded-xl p-3 space-y-1.5">
-                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">AI Settings</p>
-                <div className="flex justify-between"><span className="text-[11px] text-gray-500">Tone</span><span className="text-[11px] font-medium text-navy capitalize">{tone || '—'}</span></div>
-                <div className="flex justify-between"><span className="text-[11px] text-gray-500">Length</span><span className="text-[11px] font-medium text-navy capitalize">{answerLength || '—'}</span></div>
-              </div>
-            </div>
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+          <div>
+            <p className="text-xs font-semibold text-navy">AI Context</p>
+            <p className="text-[11px] text-gray-400">Context AI uses for drafting replies</p>
+          </div>
+
+          {selectedProperty ? (
+            <>
+              {/* Listing details */}
+              <ContextSection title="Listing details">
+                <CtxRow label="Name" value={selectedProperty.unitNumber ?? selectedProperty.name} />
+                {selectedProperty.address && <CtxRow label="Address" value={selectedProperty.address} />}
+                {selectedProperty.suburb && <CtxRow label="Suburb" value={selectedProperty.suburb} />}
+                {selectedProperty.city && <CtxRow label="City" value={selectedProperty.city} />}
+                {selectedProperty.country && <CtxRow label="Country" value={selectedProperty.country} />}
+                {selectedProperty.bedrooms != null && <CtxRow label="Bedrooms" value={String(selectedProperty.bedrooms)} />}
+                {selectedProperty.bathrooms != null && <CtxRow label="Bathrooms" value={String(selectedProperty.bathrooms)} />}
+                {selectedProperty.maxGuests != null && <CtxRow label="Max guests" value={String(selectedProperty.maxGuests)} />}
+                <CtxRow label="Check-in" value={selectedProperty.checkInTime ?? '15:00'} />
+                <CtxRow label="Check-out" value={selectedProperty.checkOutTime ?? '11:00'} />
+              </ContextSection>
+
+              {/* Access info */}
+              <ContextSection title="Access information">
+                <CtxRow label="WiFi" value={selectedProperty.wifiNetwork ?? 'Not set'} />
+                <CtxRow label="WiFi password" value={selectedProperty.wifiPassword ?? 'Not set'} />
+                {selectedProperty.parkingSpot && <CtxRow label="Parking spot" value={selectedProperty.parkingSpot} />}
+                {selectedProperty.parkingCode && <CtxRow label="Parking code" value={selectedProperty.parkingCode} />}
+              </ContextSection>
+
+              {/* Description */}
+              {selectedProperty.description && (
+                <ContextSection title="Property description">
+                  <p className="text-[11px] text-gray-600 leading-relaxed line-clamp-4">
+                    {selectedProperty.description}
+                  </p>
+                </ContextSection>
+              )}
+
+              {/* KB */}
+              <ContextSection title="Knowledge Base">
+                <p className="text-[11px] text-gray-500">{kbCount} item{kbCount !== 1 ? 's' : ''} available — retrieved dynamically per question</p>
+              </ContextSection>
+
+              {/* AI settings */}
+              <ContextSection title="AI settings">
+                <CtxRow label="Model" value={model.split('/').pop() ?? model} />
+                <CtxRow label="Tone" value={tone || 'friendly'} />
+                <CtxRow label="Answer length" value={answerLength || 'standard'} />
+              </ContextSection>
+            </>
+          ) : (
+            <p className="text-xs text-gray-400">Select a property to see context.</p>
           )}
         </div>
       )}
@@ -802,7 +874,7 @@ function AIPageInner() {
 
       {/* Right panels */}
       {rightPanel === 'test' && (
-        <TestPanel properties={properties} tone={tone} answerLength={answerLength} model={aiModel}
+        <TestPanel properties={properties} kbItems={kbItems} tone={tone} answerLength={answerLength} model={aiModel}
           onClose={() => setRightPanel(null)} />
       )}
       {rightPanel === 'facts' && editingProperty && (
