@@ -83,6 +83,7 @@ model Property {
   cleaningTasks  CleaningTask[]
   maintenanceIssues MaintenanceIssue[]
   cleanerAssignments CleanerProperty[]
+  knowledgeItems KnowledgeItem[]
 }
 
 enum BookingChannel {
@@ -262,6 +263,7 @@ model MaintenanceIssue {
 model KnowledgeItem {
   id           String       @id @default(cuid())
   orgId        String
+  propertyId   String?
   title        String
   category     String
   content      String?      @db.Text
@@ -271,6 +273,7 @@ model KnowledgeItem {
   enabled      Boolean      @default(true)
   createdAt    DateTime     @default(now())
   organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  property     Property?    @relation(fields: [propertyId], references: [id], onDelete: SetNull)
 }
 
 model ConciergeService {

@@ -12,6 +12,7 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
     const rawOrgId = formData.get('orgId') as string;
+    const propertyId = formData.get('propertyId') as string | null;
     const orgId = await resolveOrgId(rawOrgId);
     const category = formData.get('category') as string;
 
@@ -61,6 +62,7 @@ export async function POST(req: NextRequest) {
     const item = await prisma.knowledgeItem.create({
       data: {
         orgId,
+        propertyId: propertyId ?? null,
         title,
         category: category ?? 'General',
         content: textContent.slice(0, 50000),

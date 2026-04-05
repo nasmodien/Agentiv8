@@ -20,10 +20,12 @@ export async function GET(req: NextRequest) {
     }
 
     const orgId = await resolveOrgId(rawOrgId);
+    const propertyId = searchParams.get('propertyId');
 
     const items = await prisma.knowledgeItem.findMany({
       where: {
         orgId,
+        ...(propertyId ? { propertyId } : {}),
         ...(category ? { category } : {}),
         ...(search
           ? {
@@ -47,7 +49,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { orgId: rawOrgId, title, category, content, fileUrl, fileType } = body;
+    const { orgId: rawOrgId, propertyId, title, category, content, fileUrl, fileType } = body;
 
     if (!rawOrgId || !title || !category) {
       return NextResponse.json({ error: 'orgId, title, and category are required' }, { status: 400 });
@@ -90,6 +92,7 @@ export async function POST(req: NextRequest) {
     const item = await prisma.knowledgeItem.create({
       data: {
         orgId,
+        propertyId: propertyId ?? null,
         title,
         category,
         content,

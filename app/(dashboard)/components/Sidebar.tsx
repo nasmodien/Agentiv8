@@ -11,7 +11,6 @@ import {
   Coffee,
   Sparkles,
   BarChart3,
-  BookOpen,
   Settings,
   AlertTriangle,
   RefreshCw,
@@ -74,13 +73,6 @@ const navItems: NavItem[] = [
       { label: 'Overview', href: '/analytics' },
       { label: 'Revenue', href: '/analytics?section=revenue' },
       { label: 'Occupancy', href: '/analytics?section=occupancy' },
-    ],
-  },
-  {
-    label: 'Knowledge Base', href: '/knowledge', icon: BookOpen, dot: true,
-    children: [
-      { label: 'Browse', href: '/knowledge' },
-      { label: 'Add Entry', href: '/knowledge?action=add' },
     ],
   },
   {
