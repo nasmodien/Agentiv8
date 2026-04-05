@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { Toggle } from '@/components/ui/Toggle';
 import { cn } from '@/lib/utils';
+import { OPENROUTER_MODELS, DEFAULT_MODEL } from '@/lib/ai-client';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Property {
@@ -358,8 +359,8 @@ function PropertyFactsPanel({ property, orgId, onClose }: {
 }
 
 // ─── Test AI Panel ────────────────────────────────────────────────────────────
-function TestPanel({ properties, tone, answerLength, onClose }: {
-  properties: Property[]; tone: string; answerLength: string; onClose: () => void;
+function TestPanel({ properties, tone, answerLength, model, onClose }: {
+  properties: Property[]; tone: string; answerLength: string; model: string; onClose: () => void;
 }) {
   const [testTab, setTestTab] = useState<'test' | 'context'>('test');
   const [selectedPropertyId, setSelectedPropertyId] = useState(properties[0]?.id ?? '');
@@ -386,7 +387,7 @@ function TestPanel({ properties, tone, answerLength, onClose }: {
           propertyId: selectedPropertyId,
           message: input,
           history: messages.map(m => ({ role: m.role, content: m.content })),
-          sendAs, tone, answerLength,
+          sendAs, tone, answerLength, model,
         }),
       });
       const data = await res.json();
@@ -538,6 +539,7 @@ function AIPageInner() {
   const tab = searchParams.get('tab') === 'kb' ? 'kb' : 'general';
 
   const [aiEnabled, setAiEnabled] = useState(false);
+  const [aiModel, setAiModel] = useState(DEFAULT_MODEL);
   const [tone, setTone] = useState('');
   const [answerLength, setAnswerLength] = useState('');
   const [autoReply, setAutoReply] = useState(false);
@@ -563,6 +565,7 @@ function AIPageInner() {
     fetch('/api/settings?orgId=default').then(r => r.json()).then(d => {
       const s = d.settings ?? {};
       setAiEnabled(s.AI_ENABLED === 'true');
+      setAiModel(s.AI_MODEL ?? DEFAULT_MODEL);
       setTone(s.AI_TONE ?? '');
       setAnswerLength(s.AI_ANSWER_LENGTH ?? '');
       setAutoReply(s.AI_AUTO_REPLY === 'true');
@@ -592,7 +595,7 @@ function AIPageInner() {
         body: JSON.stringify({
           orgId: 'default',
           settings: {
-            AI_ENABLED: String(aiEnabled), AI_TONE: tone,
+            AI_ENABLED: String(aiEnabled), AI_MODEL: aiModel, AI_TONE: tone,
             AI_ANSWER_LENGTH: answerLength, AI_AUTO_REPLY: String(autoReply),
             AI_AUTO_REPLY_DELAY: autoReplyDelay,
           },
@@ -677,6 +680,25 @@ function AIPageInner() {
                 <>
                   <div className="bg-white rounded-xl border border-gray-200 px-6 mb-6">
                     <h2 className="text-sm font-semibold text-navy pt-5 pb-4 border-b border-gray-100">General</h2>
+                    <SettingRow label="AI Model" required={false}>
+                      <div>
+                        <Select value={aiModel} onChange={setAiModel} placeholder="Select model"
+                          options={OPENROUTER_MODELS.map(m => ({
+                            value: m.value,
+                            label: `${m.provider} · ${m.label}`,
+                          }))} />
+                        {aiModel && (() => {
+                          const m = OPENROUTER_MODELS.find(x => x.value === aiModel);
+                          const tierColor = { cheap: 'text-green', balanced: 'text-blue', powerful: 'text-orange' }[m?.tier ?? 'balanced'] ?? 'text-gray-400';
+                          const tierLabel = { cheap: 'Low cost', balanced: 'Balanced', powerful: 'High performance' }[m?.tier ?? 'balanced'];
+                          return (
+                            <p className={`text-[11px] mt-1.5 font-medium ${tierColor}`}>
+                              {tierLabel} · via OpenRouter
+                            </p>
+                          );
+                        })()}
+                      </div>
+                    </SettingRow>
                     <SettingRow label="Tone of voice">
                       <Select value={tone} onChange={setTone} placeholder="Select"
                         options={[{ value: 'friendly', label: 'Friendly' }, { value: 'neutral', label: 'Neutral' }, { value: 'professional', label: 'Professional' }, { value: 'custom', label: 'Custom' }]} />
@@ -780,7 +802,7 @@ function AIPageInner() {
 
       {/* Right panels */}
       {rightPanel === 'test' && (
-        <TestPanel properties={properties} tone={tone} answerLength={answerLength}
+        <TestPanel properties={properties} tone={tone} answerLength={answerLength} model={aiModel}
           onClose={() => setRightPanel(null)} />
       )}
       {rightPanel === 'facts' && editingProperty && (
