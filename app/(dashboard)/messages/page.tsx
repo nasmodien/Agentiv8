@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  Search, Clock, Send, CheckCircle, AlertTriangle, ArrowUp,
+  Search, Send, CheckCircle, AlertTriangle, ArrowUp,
   Wifi, Car, BookOpen, Wine, Utensils, Plane, RefreshCw, ArrowLeft, Info,
   Sparkles, ChevronDown,
 } from 'lucide-react';
