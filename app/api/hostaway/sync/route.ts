@@ -284,7 +284,10 @@ export async function GET(req: NextRequest) {
                 content: String(msg.body ?? msg.message ?? ''),
                 createdAt: msg.createdAt ? new Date(msg.createdAt as string) : new Date(),
               },
-              update: { content: String(msg.body ?? msg.message ?? '') },
+              update: {
+                role: mapMessageRole(String(msg.type ?? '')),
+                content: String(msg.body ?? msg.message ?? ''),
+              },
             });
             messagesInBatch++;
           }
@@ -313,8 +316,10 @@ export async function GET(req: NextRequest) {
 }
 
 function mapMessageRole(type: string): 'GUEST' | 'AI' | 'HUMAN' {
-  if (type === 'guest') return 'GUEST';
-  if (type === 'automatic') return 'AI';
+  const t = type.toLowerCase().trim();
+  if (t === 'guest') return 'GUEST';
+  if (t === 'automatic' || t === 'system') return 'AI';
+  // 'host', 'owner', or anything else → host reply
   return 'HUMAN';
 }
 
