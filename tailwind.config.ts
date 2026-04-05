@@ -41,12 +41,15 @@ const config: Config = {
         mono: ["DM Mono", "ui-monospace", "monospace"],
       },
       borderRadius: {
-        DEFAULT: "14px",
-        sm: "8px",
-        md: "10px",
+        none: "0",
+        sm: "10px",
+        DEFAULT: "12px",
+        md: "14px",
         lg: "16px",
         xl: "20px",
         "2xl": "24px",
+        "3xl": "28px",
+        full: "9999px",
       },
       boxShadow: {
         card: "0 2px 8px rgba(26,39,68,.05), 0 6px 20px rgba(26,39,68,.07)",

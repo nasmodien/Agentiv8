@@ -21,7 +21,7 @@
   --sidebar-w: 230px;
   --topbar-h: 58px;
   --mobile-nav-h: 60px;
-  --radius: 14px;
+  --radius: 16px;
 
   /* Themed surfaces */
   --bg-page:     #eef2f8;
@@ -76,6 +76,14 @@ html.dark {
 
 /* ── Base ────────────────────────────────────────────────────────────────── */
 * { box-sizing: border-box; }
+
+/* Global rounded corners — nothing looks squared */
+input, textarea, select {
+  border-radius: 12px !important;
+}
+button {
+  border-radius: 10px;
+}
 
 html, body {
   height: 100%;
@@ -137,7 +145,7 @@ html.dark ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); }
 
 @layer components {
   .card {
-    @apply rounded-[14px];
+    @apply rounded-[20px];
     background-color: var(--bg-card);
     box-shadow: var(--shadow);
   }
