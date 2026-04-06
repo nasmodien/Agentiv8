@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import {
   Users,
   Plus,
-  Trash2,
   Pencil,
   X,
   Check,
@@ -485,7 +485,7 @@ function UserRow({
           )}
         >
           {user.image ? (
-            <img src={user.image} alt="" className="w-10 h-10 rounded-full object-cover" />
+            <Image src={user.image} alt="" width={40} height={40} className="w-10 h-10 rounded-full object-cover" />
           ) : (
             initials(user)
           )}
