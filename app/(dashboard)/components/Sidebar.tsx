@@ -17,6 +17,7 @@ import {
   RefreshCw,
   ChevronDown,
   CheckSquare,
+  UserCog,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -83,6 +84,7 @@ const navItems: NavItem[] = [
     ],
   },
   { label: 'Sync', href: '/sync', icon: RefreshCw },
+  { label: 'Users', href: '/users', icon: UserCog },
   {
     label: 'Settings', href: '/settings', icon: Settings,
     children: [

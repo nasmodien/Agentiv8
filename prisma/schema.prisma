@@ -8,16 +8,17 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  name          String?
-  role          String    @default("MANAGER")
-  image         String?
-  emailVerified DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  accounts      Account[]
-  sessions      Session[]
+  id              String    @id @default(cuid())
+  email           String    @unique
+  name            String?
+  role            String    @default("MANAGER")
+  pagePermissions String[]  @default([])
+  image           String?
+  emailVerified   DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  accounts        Account[]
+  sessions        Session[]
 }
 
 model Account {
