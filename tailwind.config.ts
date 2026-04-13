@@ -1,6 +1,7 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
+  darkMode: 'class',
   content: [
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -40,11 +41,20 @@ const config: Config = {
         mono: ["DM Mono", "ui-monospace", "monospace"],
       },
       borderRadius: {
-        DEFAULT: "10px",
+        none: "0",
+        sm: "10px",
+        DEFAULT: "12px",
+        md: "14px",
+        lg: "16px",
+        xl: "20px",
+        "2xl": "24px",
+        "3xl": "28px",
+        full: "9999px",
       },
       boxShadow: {
-        card: "0 1px 4px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.06)",
-        lg: "0 4px 24px rgba(0,0,0,.12)",
+        card: "0 2px 8px rgba(26,39,68,.05), 0 6px 20px rgba(26,39,68,.07)",
+        lg: "0 4px 32px rgba(26,39,68,.14)",
+        sidebar: "4px 0 20px rgba(26,39,68,.06)",
       },
     },
   },
